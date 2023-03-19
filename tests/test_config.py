@@ -31,8 +31,5 @@ def test_readConfig():
 
 def test_readConfig_does_not_exist(capsys):
     appname = "does_not_existify"
-    junk = readConfig(appname)
-    out, err = capsys.readouterr()
-    assert "ConfigFileNotFound" in out
-    assert "cannot find config file" in out
-    assert f"{appname}.cfg" in out
+    with pytest.raises(ConfigFileNotFound):
+        junk = readConfig(appname)

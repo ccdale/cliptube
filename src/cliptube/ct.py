@@ -22,3 +22,12 @@ import sys
 import pyclip
 
 from cliptube import __version__, errorExit, errorNotify, errorRaise
+
+appname = "cliptube"
+
+
+def goBabe():
+    try:
+        cfg = readConfig(appname)
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)

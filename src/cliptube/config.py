@@ -23,7 +23,7 @@ import os
 from pathlib import Path
 import sys
 
-from cliptube import errorNotify
+from cliptube import errorRaise
 
 
 class ConfigFileNotFound(Exception):
@@ -40,4 +40,4 @@ def readConfig(appname):
         config.read(cfgpath)
         return config
     except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
+        errorRaise(sys.exc_info()[2], e)
