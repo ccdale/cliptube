@@ -23,6 +23,12 @@ import pytest
 from cliptube.config import ConfigFileNotFound, readConfig
 
 
+def test_readConfig():
+    appname = "cliptube"
+    cfg = readConfig(appname)
+    assert cfg["mediaserver"]["user"] == "chris"
+
+
 def test_readConfig_does_not_exist(capsys):
     appname = "does_not_existify"
     junk = readConfig(appname)

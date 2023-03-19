@@ -19,6 +19,7 @@
 
 """config module for cliptube application."""
 import configparser
+import os
 from pathlib import Path
 import sys
 
@@ -31,7 +32,8 @@ class ConfigFileNotFound(Exception):
 
 def readConfig(appname):
     try:
-        cfgpath = Path(f"~/.config/{appname}.cfg")
+        absfn = os.path.abspath(os.path.expanduser(f"~/.config/{appname}.cfg"))
+        cfgpath = Path(absfn)
         if not cfgpath.exists():
             raise ConfigFileNotFound(f"cannot find config file: {cfgpath}")
         config = configparser.ConfigParser()
