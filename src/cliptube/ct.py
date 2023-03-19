@@ -28,6 +28,7 @@ appname = "cliptube"
 
 def goBabe():
     try:
+        print(f"{appname} {__version__} starting")
         cfg = readConfig(appname)
     except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
+        errorExit(sys.exc_info()[2], e)
