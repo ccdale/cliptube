@@ -1,0 +1,17 @@
+*.egg-info
+*swp
+*pycache*
+build/
+package
+dist/
+.nox/
+docs/_build
+.coverage
+htmlcov
+coverage.xml
+.mypy*
+checkec2.py
+tests/*ts
+tests/*json
+tests/*mp2
+tests/*mp3
