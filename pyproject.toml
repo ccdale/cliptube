@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cliptube"
-version = "0.1.7"
+version = "0.1.8"
 description = "tool to download youtube videos from the clipboard."
 authors = ["ccdale <chris.charles.allison+cliptube@gmail.com>"]
 readme = "README.md"
@@ -13,6 +13,9 @@ pyclip = "^0.7.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.2"
+
+[tool.poetry.scripts]
+cliptube = "cliptube.ct:goBabe"
 
 [build-system]
 requires = ["poetry-core"]

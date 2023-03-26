@@ -22,6 +22,7 @@ import sys
 import pyclip
 
 from cliptube import __version__, errorExit, errorNotify, errorRaise
+from cliptube.config import readConfig
 
 appname = "cliptube"
 
