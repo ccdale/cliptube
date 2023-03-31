@@ -18,18 +18,67 @@
 #
 
 import sys
+import time
+from urllib.parse import urlparse, parse_qs
 
+import ccalogging
 import pyclip
 
 from cliptube import __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
 
+
 appname = "cliptube"
+ccalogging.setConsoleOut()
+ccalogging.setDebug()
+# ccalogging.setInfo()
+log = ccalogging.log
 
 
 def goBabe():
     try:
-        print(f"{appname} {__version__} starting")
+        log.debug(f"{appname} {__version__} starting")
         cfg = readConfig(appname)
+        magic = "STOPCLIPBOARDWATCH"
+        lines = []
+        log.info(f"Copy '{magic}' to the clipboard to stop watching the clipboard")
+        pyclip.clear()
+        while True:
+            txt = waitForClipboard()
+            log.debug(f"text from clipboard '{txt}'")
+            if magic in txt:
+                break
+            if "youtube.com" in txt and "watch" in txt:
+                log.debug(f"detected youtube url '{txt}'")
+                parsed = urlparse(txt)
+                dparsed = parse_qs(parsed.query)
+                log.debug(f"{dparsed=}")
+                if "v" in dparsed:
+                    vid = dparsed["v"][0]
+                    log.debug(f"video {vid} extracted from url")
+                    url = f"https://www.youtube.com/watch?v={vid}"
+                    log.debug(f"storing '{url}'")
+                    lines.append(url)
+        with open("/home/chris/batch", "w") as ofn:
+            for line in lines:
+                ofn.write(f"{line}\n")
+        log.debug(f"{appname} terminating")
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
+
+
+def waitForClipboard(timeout=None):
+    try:
+        stime = time.time()
+        while True:
+            txt = pyclip.paste(text=True)
+            if txt != "":
+                pyclip.clear()
+                return txt.strip()
+            time.sleep(0.01)
+            if timeout is not None and time.time() > (stime + timeout):
+                raise Exception(
+                    f"Timeout in waitForClipboard after {time.time() - stime:<2} seconds"
+                )
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
