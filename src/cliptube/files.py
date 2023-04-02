@@ -20,6 +20,8 @@
 import os
 import sys
 
+from fabric import Connection
+
 from cliptube import errorNotify
 from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
 
@@ -33,5 +35,19 @@ def getOutputFileName():
         writeConfig(cfg)
         idir = os.path.abspath(os.path.expanduser(f'~/{cfg["youtube"]["incomingdir"]}'))
         return f"{idir}/{fnum:0>3}"
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+def sendFileTo(cfg, fn, ofn):
+    try:
+        mhost = cfg["mediaserver"]["host"]
+        muser = cfg["mediaserver"]["user"]
+        mkeyfn = os.path.abspath(
+            os.path.expanduser(f'~/.ssh/{cfg["mediaserver"]["keyfn"]}')
+        )
+        ckwargs = {"key_filename": keyfn}
+        with Connection(host=mhost, user=muser, connect_kwargs=ckwargs) as c:
+            c.put(fn, ofn)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
