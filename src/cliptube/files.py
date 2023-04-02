@@ -27,9 +27,9 @@ from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
 def getOutputFileName():
     try:
         cfg = readConfig()
-        fnum = cfg["youtube"]["filenumber"]
-        ifnum = int(fnum) + 1
-        cfg["youtube"]["filenumber"] = str(ifnum)
+        fnum = int(cfg["youtube"]["filenumber"])
+        nextn = fnum + 1
+        cfg["youtube"]["filenumber"] = str(nextn)
         writeConfig(cfg)
         idir = os.path.abspath(os.path.expanduser(f'~/{cfg["youtube"]["incomingdir"]}'))
         return f"{idir}/{fnum:0>3}"

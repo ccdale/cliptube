@@ -10,6 +10,7 @@ packages = [{include = "cliptube", from = "src"}]
 python = "^3.10"
 pyclip = "^0.7.0"
 ccalogging = "^0.4.4"
+fabric = "^3.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
