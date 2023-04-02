@@ -27,6 +27,7 @@ import pyclip
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
+from cliptube.files import sendFileTo
 
 
 # appname = "cliptube"
