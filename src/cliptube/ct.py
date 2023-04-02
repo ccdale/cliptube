@@ -17,11 +17,13 @@
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
 import sys
 import time
 from urllib.parse import urlparse, parse_qs
 
 import ccalogging
+from fabric import Connection
 import pyclip
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
@@ -80,5 +82,19 @@ def waitForClipboard(timeout=None):
                 raise Exception(
                     f"Timeout in waitForClipboard after {time.time() - stime:<2} seconds"
                 )
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+def sendFileTo(cfg, fn, ofn):
+    try:
+        mhost = cfg["mediaserver"]["host"]
+        muser = cfg["mediaserver"]["user"]
+        mkeyfn = os.path.abspath(
+            os.path.expanduser(f'~/.ssh/{cfg["mediaserver"]["keyfn"]}')
+        )
+        ckwargs = {"key_filename": keyfn}
+        with Connection(host=mhost, user=muser, connect_kwargs=ckwargs) as c:
+            c.put(fn, ofn)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
