@@ -24,11 +24,11 @@ from urllib.parse import urlparse, parse_qs
 import ccalogging
 import pyclip
 
-from cliptube import __version__, errorExit, errorNotify, errorRaise
+from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
 
 
-appname = "cliptube"
+# appname = "cliptube"
 ccalogging.setConsoleOut()
 ccalogging.setDebug()
 # ccalogging.setInfo()
@@ -37,8 +37,8 @@ log = ccalogging.log
 
 def goBabe():
     try:
-        log.debug(f"{appname} {__version__} starting")
-        cfg = readConfig(appname)
+        log.debug(f"{__appname__} {__version__} starting")
+        cfg = readConfig(__appname__)
         magic = "STOPCLIPBOARDWATCH"
         lines = []
         log.info(f"Copy '{magic}' to the clipboard to stop watching the clipboard")
@@ -62,7 +62,7 @@ def goBabe():
         with open("/home/chris/batch", "w") as ofn:
             for line in lines:
                 ofn.write(f"{line}\n")
-        log.debug(f"{appname} terminating")
+        log.debug(f"{__appname__} terminating")
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
 

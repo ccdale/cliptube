@@ -17,30 +17,10 @@
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-"""test module for the cliptube.config module"""
-import pytest
-
-from cliptube import __appname__
-from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
+from cliptube.config import ConfigFileNotFound, readConfig
+from cliptube.files import getOutputFileName
 
 
-def test_readConfig():
-    cfg = readConfig()
-    assert cfg["mediaserver"]["user"] == "chris"
-
-
-def test_readConfig_does_not_exist(capsys):
-    junkname = "does_not_existify"
-    with pytest.raises(ConfigFileNotFound):
-        junk = readConfig(overrideappname=junkname)
-
-
-def test_writeConfig():
-    cfg = readConfig()
-    fv = int(cfg["testsection"]["fileval"])
-    fv += 1
-    cfg["testsection"]["fileval"] = str(fv)
-    writeConfig(cfg)
-    xcfg = readConfig()
-    xfv = int(cfg["testsection"]["fileval"])
-    assert xfv == fv
+def test_getOutputFileName():
+    ofn = getOutputFileName()
+    assert ofn.startswith("/home/chris/youtube/incoming/")
