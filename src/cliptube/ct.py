@@ -24,7 +24,8 @@ from urllib.parse import urlparse, parse_qs
 
 import ccalogging
 import pyclip
-import pyperclip
+
+# import pyperclip
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
@@ -47,8 +48,8 @@ def goBabe():
         log.info(f"Copy '{magic}' to the clipboard to stop watching the clipboard")
         pyclip.clear()
         while True:
-            # txt = waitForClipboard()
-            txt = pyperclip.waitForNewPaste()
+            txt = waitForClipboard()
+            # txt = pyperclip.waitForNewPaste()
             log.debug(f"text from clipboard '{txt}'")
             if magic in txt:
                 break
@@ -87,7 +88,7 @@ def waitForClipboard(timeout=None):
             if txt != "":
                 pyclip.clear()
                 return txt.strip()
-            time.sleep(0.01)
+            time.sleep(1)
             if timeout is not None and time.time() > (stime + timeout):
                 raise Exception(
                     f"Timeout in waitForClipboard after {time.time() - stime:<2} seconds"
