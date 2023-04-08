@@ -39,14 +39,16 @@ def getOutputFileName():
         errorNotify(sys.exc_info()[2], e)
 
 
-def sendFileTo(cfg, fn, ofn):
+def sendFileTo(fn):
     try:
+        cfg = readConfig()
         mhost = cfg["mediaserver"]["host"]
         muser = cfg["mediaserver"]["user"]
         mkeyfn = os.path.abspath(
             os.path.expanduser(f'~/.ssh/{cfg["mediaserver"]["keyfn"]}')
         )
         ckwargs = {"key_filename": keyfn}
+        ofn = getOutputFilename()
         with Connection(host=mhost, user=muser, connect_kwargs=ckwargs) as c:
             c.put(fn, ofn)
     except Exception as e:
