@@ -26,7 +26,8 @@ from urllib.parse import urlparse, parse_qs
 
 import ccalogging
 import pyclip
-import PySimpleGUIQt as sg
+
+# import PySimpleGUIQt as sg
 
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
@@ -40,14 +41,16 @@ ccalogging.setDebug()
 # ccalogging.setInfo()
 log = ccalogging.log
 
+
 class ClipboardTimeout(Exception):
     pass
+
 
 def goBabe():
     try:
         log.debug(f"{__appname__} {__version__} starting")
         cfg = readConfig(__appname__)
-        layout = [[psg.Button("OK"), psg.Button("Cancel")]
+        # layout = [[psg.Button("OK"), psg.Button("Cancel")]
         magic = "STOPCLIPBOARDWATCH"
         # lines = []
         log.info(f"Copy '{magic}' to the clipboard to stop watching the clipboard")
@@ -101,6 +104,7 @@ def waitForClipboard(timeout=None):
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 
+
 def watchClipboard(Q, ev, magic="STOPCLIPBOARDWATCH"):
     try:
         while True:
@@ -134,6 +138,7 @@ def checkUrl(txt):
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
+
 def watchQ(Q):
     try:
         while True:
@@ -150,6 +155,7 @@ def watchQ(Q):
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
+
 def sendUrl(iurl):
     try:
         fn = f"/tmp/{__appname__}.dat"
@@ -158,6 +164,7 @@ def sendUrl(iurl):
         sendFileTo(fn)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
+
 
 def main():
     try:
