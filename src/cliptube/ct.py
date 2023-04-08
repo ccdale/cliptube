@@ -24,6 +24,7 @@ from urllib.parse import urlparse, parse_qs
 
 import ccalogging
 import pyclip
+import pyperclip
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
@@ -42,11 +43,12 @@ def goBabe():
         log.debug(f"{__appname__} {__version__} starting")
         cfg = readConfig(__appname__)
         magic = "STOPCLIPBOARDWATCH"
-        lines = []
+        # lines = []
         log.info(f"Copy '{magic}' to the clipboard to stop watching the clipboard")
         pyclip.clear()
         while True:
-            txt = waitForClipboard()
+            # txt = waitForClipboard()
+            txt = pyperclip.waitForNewPaste()
             log.debug(f"text from clipboard '{txt}'")
             if magic in txt:
                 break
@@ -59,14 +61,22 @@ def goBabe():
                     vid = dparsed["v"][0]
                     log.debug(f"video {vid} extracted from url")
                     url = f"https://www.youtube.com/watch?v={vid}"
-                    log.debug(f"storing '{url}'")
-                    lines.append(url)
-        with open("/home/chris/batch", "w") as ofn:
-            for line in lines:
-                ofn.write(f"{line}\n")
+                    saveUrl(url)
+                    # log.debug(f"storing '{url}'")
+                    # lines.append(url)
+        # with open("/home/chris/batch", "w") as ofn:
+        #     for line in lines:
+        #         ofn.write(f"{line}\n")
         log.debug(f"{__appname__} terminating")
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
+
+
+def saveUrl(url):
+    try:
+        log.debug(f"saving youtube url {url}")
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
 
 
 def waitForClipboard(timeout=None):
