@@ -37,7 +37,8 @@ from cliptube.files import sendFileTo
 
 
 # appname = "cliptube"
-ccalogging.setConsoleOut()
+# ccalogging.setConsoleOut()
+ccalogging.setLogFile("/home/chris/log/cliptube.log")
 ccalogging.setDebug()
 # ccalogging.setInfo()
 log = ccalogging.log
