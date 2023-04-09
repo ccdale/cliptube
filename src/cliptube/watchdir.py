@@ -47,7 +47,7 @@ def getFiles(path):
 
 def watchDir(ev, path, sleeptime=60):
     try:
-        log.debug("watch dir starting to watch {path}")
+        log.debug(f"watch dir starting to watch {path}")
         while not ev.is_set():
             getFiles(path)
             time.sleep(sleeptime)
