@@ -2,7 +2,7 @@
 Type=Application
 Name=cliptube
 Comment=watch the clipboard for youtube urls
-Icon=/home/chris/src/cliptube/image/cliptube.png
+Icon=/home/chris/.local/share/image/cliptube.png
 Exec=/home/chris/.local/bin/cliptube
 Path=/home/chris/src/cliptube
 Categories=Network
