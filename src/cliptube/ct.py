@@ -130,13 +130,13 @@ def watchClipboard(Q, ev, magic="STOPCLIPBOARDWATCH"):
                 break
             txt = waitForClipboard(timeout=1)
             if txt is not None and magic in txt:
-                # Q.put("STOP")
+                Q.put("STOP")
                 ev.set()
                 break
             url = checkUrl(txt)
             if url is not None:
-                sendUrl(url)
-                # Q.put(url)
+                # sendUrl(url)
+                Q.put(url)
         log.debug("watch clipboard thread complete")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
@@ -144,7 +144,7 @@ def watchClipboard(Q, ev, magic="STOPCLIPBOARDWATCH"):
 
 def checkUrl(txt):
     try:
-        if "youtube.com" in txt and "watch" in txt:
+        if txt is not None and "youtube.com" in txt and "watch" in txt:
             log.debug(f"detected youtube url '{txt}'")
             parsed = urlparse(txt)
             dparsed = parse_qs(parsed.query)
@@ -169,6 +169,7 @@ def watchQ(Q, ev):
                 iurl = Q.get()
                 if "STOP" in iurl:
                     Q.task_done()
+                    ev.set()
                     break
                 sendUrl(iurl)
                 Q.task_done()
@@ -192,6 +193,10 @@ def main():
     try:
         msg = f"{__appname__} {__version__} watching clipboard for youtube urls"
         log.info(msg)
+        # wayland check for QT
+        xserver = os.environ.get("XDG_SESSION_TYPE", "Xorg")
+        if xserver == "wayland":
+            os.environ["QT_QPA_PLATFORM"] = "wayland"
         pyclip.clear()
         ev = Event()
         ev.clear()
@@ -199,8 +204,8 @@ def main():
         kwargs = {"magic": "STOPCLIPBOARDWATCH"}
         wcfred = Thread(target=watchClipboard, args=[Q, ev], kwargs=kwargs)
         wcfred.start()
-        # wqfred = Thread(target=watchQ, args=[Q, ev])
-        # wqfred.start()
+        wqfred = Thread(target=watchQ, args=[Q, ev])
+        wqfred.start()
 
         menu_def = [
             "BLANK",
@@ -215,10 +220,11 @@ def main():
         while True:  # event loop
             menuitem = tray.read()
             if menuitem == "Exit":
+                pyclip.copy("STOPCLIPBOARDWATCH")
                 ev.set()
                 break
 
         wcfred.join()
-        # wqfred.join()
+        wqfred.join()
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
