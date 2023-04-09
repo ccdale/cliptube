@@ -20,6 +20,7 @@
 import os
 from queue import Queue
 import sys
+from signal import signal, SIGINT
 import time
 from threading import Event, Thread
 from urllib.parse import urlparse, parse_qs
@@ -27,7 +28,7 @@ from urllib.parse import urlparse, parse_qs
 import ccalogging
 import pyclip
 
-# import PySimpleGUIQt as sg
+import PySimpleGUIQt as sg
 
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
@@ -40,6 +41,21 @@ ccalogging.setConsoleOut()
 ccalogging.setDebug()
 # ccalogging.setInfo()
 log = ccalogging.log
+
+
+def interruptCT(signrcvd, frame):
+    try:
+        print()
+        print("Keyboard interrupt received in ct module - exiting.")
+        print()
+        sys.exit(255)
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+# if we get a `ctrl-c` from the keyboard, stop immediately
+# by going to the interruptCT above
+signal(SIGINT, interruptCT)
 
 
 class ClipboardTimeout(Exception):
@@ -98,28 +114,30 @@ def waitForClipboard(timeout=None):
                 return txt.strip()
             time.sleep(0.01)
             if timeout is not None and time.time() > (stime + timeout):
-                raise ClipboardTimeout(
-                    f"Timeout in waitForClipboard after {time.time() - stime:<2} seconds"
-                )
+                # raise ClipboardTimeout(
+                #     f"Timeout in waitForClipboard after {time.time() - stime:<2} seconds"
+                # )
+                break
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 
 
 def watchClipboard(Q, ev, magic="STOPCLIPBOARDWATCH"):
     try:
+        log.debug("watchclipboard thread starting")
         while True:
-            try:
-                txt = waitForClipboard(timeout=1)
-            except ClipboardTimeout:
-                if ev.is_set():
-                    Q.put("STOP")
-                    break
-                continue
-            if magic in txt:
+            if ev.is_set():
+                break
+            txt = waitForClipboard(timeout=1)
+            if txt is not None and magic in txt:
+                # Q.put("STOP")
+                ev.set()
                 break
             url = checkUrl(txt)
             if url is not None:
-                Q.put(url)
+                sendUrl(url)
+                # Q.put(url)
+        log.debug("watch clipboard thread complete")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
@@ -139,9 +157,12 @@ def checkUrl(txt):
         errorNotify(sys.exc_info()[2], e)
 
 
-def watchQ(Q):
+def watchQ(Q, ev):
     try:
+        log.debug("watch Q thread starting")
         while True:
+            if ev.is_set():
+                break
             if Q.empty():
                 time.sleep(1)
             else:
@@ -151,7 +172,7 @@ def watchQ(Q):
                     break
                 sendUrl(iurl)
                 Q.task_done()
-        return cn
+        log.debug("watch Q thread complete")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
@@ -162,6 +183,7 @@ def sendUrl(iurl):
         with open(fn, "w") as ofn:
             ofn.write(iurl)
         sendFileTo(fn)
+        log.info(f"sent {iurl} to druidmedia")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
@@ -170,15 +192,33 @@ def main():
     try:
         msg = f"{__appname__} {__version__} watching clipboard for youtube urls"
         log.info(msg)
+        pyclip.clear()
         ev = Event()
         ev.clear()
         Q = Queue()
         kwargs = {"magic": "STOPCLIPBOARDWATCH"}
         wcfred = Thread(target=watchClipboard, args=[Q, ev], kwargs=kwargs)
         wcfred.start()
-        wqfred = Thread(target=watchQ, args=[Q])
-        wqfred.start()
+        # wqfred = Thread(target=watchQ, args=[Q, ev])
+        # wqfred.start()
+
+        menu_def = [
+            "BLANK",
+            ["&Status", "---", "&Load Queue", "Save &Queue", "---", "E&xit"],
+        ]
+        tray = sg.SystemTray(
+            menu=menu_def,
+            filename=r"image/cliptube.png",
+            tooltip="Youtube URL clipboard watcher",
+        )
+
+        while True:  # event loop
+            menuitem = tray.read()
+            if menuitem == "Exit":
+                ev.set()
+                break
+
         wcfred.join()
-        wqfred.join()
+        # wqfred.join()
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
