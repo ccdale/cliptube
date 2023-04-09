@@ -48,7 +48,7 @@ def sendFileTo(fn):
             os.path.expanduser(f'~/.ssh/{cfg["mediaserver"]["keyfn"]}')
         )
         ckwargs = {"key_filename": mkeyfn}
-        ofn = getOutputFilename()
+        ofn = getOutputFileName()
         with Connection(host=mhost, user=muser, connect_kwargs=ckwargs) as c:
             c.put(fn, ofn)
     except Exception as e:
