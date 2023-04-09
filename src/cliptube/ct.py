@@ -130,12 +130,14 @@ def watchClipboard(Q, ev, magic="STOPCLIPBOARDWATCH"):
                 break
             txt = waitForClipboard(timeout=1)
             if txt is not None and magic in txt:
+                log.debug(f"{magic} found. clipboard watcher thread closing")
                 Q.put("STOP")
                 ev.set()
                 break
             url = checkUrl(txt)
             if url is not None:
                 # sendUrl(url)
+                log.debug(f"putting {url} on Q")
                 Q.put(url)
         log.debug("watch clipboard thread complete")
     except Exception as e:
@@ -168,9 +170,11 @@ def watchQ(Q, ev):
             else:
                 iurl = Q.get()
                 if "STOP" in iurl:
+                    log.debug("STOP found in Q, closing Q watcher")
                     Q.task_done()
                     ev.set()
                     break
+                log.debug(f"sending {iurl} to media server")
                 sendUrl(iurl)
                 Q.task_done()
         log.debug("watch Q thread complete")
