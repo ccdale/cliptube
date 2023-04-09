@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cliptube"
-version = "0.2.3"
+version = "0.2.4"
 description = "tool to download youtube videos from the clipboard."
 authors = ["ccdale <chris.charles.allison+cliptube@gmail.com>"]
 readme = "README.md"
