@@ -9,7 +9,7 @@ from cliptube import __appname__, __version__, errorExit, errorNotify, errorRais
 from cliptube.config import readConfig
 from cliptube.shell import shellCommand
 
-ccalogging.setLogFile(f"/home/chris/logs/{__appname__}.log")
+ccalogging.setLogFile(f"/home/chris/log/{__appname__}.log")
 ccalogging.setDebug()
 log = ccalogging.log
 
@@ -17,7 +17,9 @@ log = ccalogging.log
 def dirFileList(path):
     try:
         if os.path.isdir(path):
-            return [f for f in os.listdir(path) if os.path.isfile(os.join(path, f))]
+            return [
+                f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))
+            ]
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
