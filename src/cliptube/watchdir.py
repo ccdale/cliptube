@@ -100,7 +100,7 @@ def doTray():
         fred = Thread(target=dirWatch, args=[])
         fred.start()
         log.info(f"Starting tray icon for {__appname__} mediaserver directory watcher")
-        menudef = ["E&xit"]
+        menudef = ["BLANK", ["E&xit"]]
         tray = sg.SystemTray(
             menu=menudef,
             filename=r"image/dirwatch-green.png",

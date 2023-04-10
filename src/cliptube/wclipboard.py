@@ -79,7 +79,7 @@ def doTray():
         fred = Thread(target=watchparcellite, args=[])
         fred.start()
         log.info(f"Starting tray icon for {__appname__}")
-        menudef = ["E&xit"]
+        menudef = ["BLANK", ["E&xit"]]
         tray = sg.SystemTray(
             menu=menudef,
             filename=rf"image/{__appname__}.png",
