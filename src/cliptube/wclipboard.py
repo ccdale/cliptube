@@ -1,3 +1,4 @@
+import os
 from signal import signal, SIGINT
 import sys
 from threading import Event, Thread
