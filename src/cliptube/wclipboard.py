@@ -1,9 +1,10 @@
 from signal import signal, SIGINT
 import sys
-from threading import Event
+from threading import Event, Thread
 import time
 
 import ccalogging
+import PySimpleGUIQt as sg
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
@@ -63,5 +64,29 @@ def processNewUrls(urls):
             # ofn.writelines(urls)
         sendFileTo(tfn)
         log.info(f"sent {len(urls)} urls to mediaserver")
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+def doTray():
+    try:
+        global ev
+        # wayland check for QT
+        xserver = os.environ.get("XDG_SESSION_TYPE", "Xorg")
+        if xserver == "wayland":
+            os.environ["QT_QPA_PLATFORM"] = "wayland"
+        fred = Thread(target=watchparcellite, args=[])
+        fred.start()
+        log.info("Starting tray icon for directory watcher")
+        menudef = ["E&xit"]
+        tray = sg.SystemTray(menu=menudef, filename=r"image/watchdir-green.png", tooltip="Youtube incoming directory watcher")
+        while True:
+            menuitem = tray.read()
+            if menuitem = "Exit":
+                ev.set()
+                break
+        log.info("removing tray icon for directory watcher")
+        log.info("waiting for thread to end")
+        fred.join()
+        log.info("thread has ended")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
