@@ -56,11 +56,11 @@ def getFiles(path):
                 #     line = ifn.readline()
                 # log.debug(f"read url {line} from {fqfn}")
                 cmd = ["yt-dlp", "-a", fqfn]
-                log.debug(f"shellCommand: {cmd=}")
+                log.info(f"shellCommand: {cmd=}")
                 cout, cerr = shellCommand(cmd)
                 log.debug(f"{cout=}")
                 log.debug(f"{cerr=}")
-                log.debug(f"deleting incoming file {fqfn}")
+                log.info(f"deleting incoming file {fqfn}")
                 os.unlink(fqfn)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
@@ -68,7 +68,7 @@ def getFiles(path):
 
 def watchDir(path, sleeptime=60):
     try:
-        log.debug(f"watch dir starting to watch {path}")
+        log.debug(f"watch dir {__version__} starting to watch {path}")
         while not ev.is_set():
             getFiles(path)
             ev.wait(sleeptime)
@@ -79,11 +79,11 @@ def watchDir(path, sleeptime=60):
 
 def dirWatch():
     try:
-        log.debug(f"starting {__appname__} {__version__} dirWatch")
+        log.info(f"starting {__appname__} {__version__} dirWatch")
         cfg = readConfig()
         path = os.path.abspath(os.path.expanduser(f"~/{cfg['youtube']['incomingdir']}"))
-        log.debug(f"dirWatch will watch {path}")
+        log.info(f"dirWatch will watch {path}")
         watchDir(path)
-        log.debug("dirWatch completed")
+        log.info("dirWatch completed")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
