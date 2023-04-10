@@ -43,7 +43,8 @@ def readList():
         fn = os.path.abspath(os.path.expanduser(f"~/.config/{__appname__}.list"))
         if os.path.exists(fn):
             with open(fn, "r") as ifn:
-                xlist = ifn.readlines()
+                # strip the newline of the end of each line as it comes in
+                xlist = [x.strip() for x in ifn.readlines()]
         log.debug(f"{len(xlist)} urls read from {__appname__} history")
         return xlist
     except Exception as e:
@@ -53,8 +54,11 @@ def readList():
 def getNewUrls():
     try:
         xlist = readList()
+        log.debug(f"{xlist=}")
         hlist = readParcelliteHistoryFile()
+        log.debug(f"{hlist=}")
         nlist = [x for x in hlist if x not in xlist]
+        log.debug(f"{nlist=}")
         saveList(hlist)
         log.debug(f"{len(nlist)} new urls found")
         return nlist
