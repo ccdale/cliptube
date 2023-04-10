@@ -58,7 +58,9 @@ def processNewUrls(urls):
         log.debug(f"sending {len(urls)} urls to mediaserver.")
         tfn = f"/tmp/{__appname__}.list"
         with open(tfn, "w") as ofn:
-            ofn.writelines(urls)
+            ofn.write("\n".join(urls))
+            ofn.write("\n")
+            # ofn.writelines(urls)
         sendFileTo(tfn)
         log.info(f"sent {len(urls)} urls to mediaserver")
     except Exception as e:

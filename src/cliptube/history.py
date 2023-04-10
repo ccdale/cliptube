@@ -30,7 +30,9 @@ def saveList(urls):
         fn = os.path.abspath(os.path.expanduser(f"~/.config/{__appname__}.list"))
         log.debug(f"{len(urls)} urls saved to {__appname__} history")
         with open(fn, "w") as ofn:
-            ofn.writelines(urls)
+            ofn.write("\n".join(urls))
+            ofn.write("\n")
+            # ofn.writelines(urls)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
