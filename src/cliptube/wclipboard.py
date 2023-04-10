@@ -78,7 +78,7 @@ def doTray():
         fred.start()
         log.info("Starting tray icon for cliptube")
         menudef = ["E&xit"]
-        tray = sg.SystemTray(menu=menudef, filename=r"image/watchdir-green.png", tooltip="Youtube incoming directory watcher")
+        tray = sg.SystemTray(menu=menudef, filename=r"image/cliptube.png", tooltip="Youtube clipboard watcher")
         while True:
             menuitem = tray.read()
             if menuitem = "Exit":
