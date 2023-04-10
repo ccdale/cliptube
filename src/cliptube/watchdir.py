@@ -1,4 +1,5 @@
 import os
+from signal import signal, SIGINT
 import sys
 import threading
 import time
@@ -12,6 +13,25 @@ from cliptube.shell import shellCommand
 ccalogging.setLogFile(f"/home/chris/log/{__appname__}.log")
 ccalogging.setDebug()
 log = ccalogging.log
+
+ev = threading.Event()
+ev.clear()
+
+
+def interruptWD(signrcvd, frame):
+    try:
+        global ev
+        msg = "Keyboard interrupt received in watchdir module - exiting."
+        log.info(msg)
+        ev.set()
+        # sys.exit(255)
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+# if we get a `ctrl-c` from the keyboard, stop immediately
+# by going to the interruptCT above
+signal(SIGINT, interruptWD)
 
 
 def dirFileList(path):
@@ -45,12 +65,12 @@ def getFiles(path):
         errorNotify(sys.exc_info()[2], e)
 
 
-def watchDir(ev, path, sleeptime=60):
+def watchDir(path, sleeptime=60):
     try:
         log.debug(f"watch dir starting to watch {path}")
         while not ev.is_set():
             getFiles(path)
-            time.sleep(sleeptime)
+            ev.wait(sleeptime)
         log.debug("watch dir completed")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
@@ -62,9 +82,7 @@ def dirWatch():
         cfg = readConfig()
         path = os.path.abspath(os.path.expanduser(f"~/{cfg['youtube']['incomingdir']}"))
         log.debug(f"dirWatch will watch {path}")
-        ev = threading.Event()
-        ev.clear()
-        watchDir(ev, path)
+        watchDir(path)
         log.debug("dirWatch completed")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
