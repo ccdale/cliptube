@@ -34,6 +34,7 @@ import PySimpleGUIQt as sg
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
 from cliptube.files import sendFileTo
+from cliptube.history import checkUrl
 
 
 # appname = "cliptube"
@@ -141,21 +142,6 @@ def watchClipboard(Q, ev, magic="STOPCLIPBOARDWATCH"):
                 log.debug(f"putting {url} on Q")
                 Q.put(url)
         log.debug("watch clipboard thread complete")
-    except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
-
-
-def checkUrl(txt):
-    try:
-        if txt is not None and "youtube.com" in txt and "watch" in txt:
-            log.debug(f"detected youtube url '{txt}'")
-            parsed = urlparse(txt)
-            dparsed = parse_qs(parsed.query)
-            log.debug(f"{dparsed=}")
-            if "v" in dparsed:
-                vid = dparsed["v"][0]
-                log.debug(f"video {vid} extracted from url")
-                return f"https://www.youtube.com/watch?v={vid}"
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
