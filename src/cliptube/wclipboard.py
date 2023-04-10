@@ -44,6 +44,8 @@ def watchparcellite():
             urls = getNewUrls()
             if len(urls):
                 log.debug(f"watchparcellite: {len(urls)} new urls found")
+                processNewUrls(urls)
+            log.debug(f'sleeping for {cfg["parcellite"]["sleeptime"]} seconds')
             ev.wait(int(cfg["parcellite"]["sleeptime"]))
         log.info(f"{__appname__} closing down, bye.")
     except Exception as e:
