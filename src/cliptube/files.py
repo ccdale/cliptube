@@ -26,9 +26,9 @@ from cliptube import errorNotify
 from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
 
 
-def getOutputFileName():
+def getOutputFileName(cfg):
     try:
-        cfg = readConfig()
+        # cfg = readConfig()
         fnum = int(cfg["youtube"]["filenumber"])
         nextn = fnum + 1
         cfg["youtube"]["filenumber"] = str(nextn)
@@ -48,7 +48,7 @@ def sendFileTo(fn):
             os.path.expanduser(f'~/.ssh/{cfg["mediaserver"]["keyfn"]}')
         )
         ckwargs = {"key_filename": mkeyfn}
-        ofn = getOutputFileName()
+        ofn = getOutputFileName(cfg)
         with Connection(host=mhost, user=muser, connect_kwargs=ckwargs) as c:
             c.put(fn, ofn)
     except Exception as e:

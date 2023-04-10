@@ -31,10 +31,10 @@ def getFiles(path):
             for fn in files:
                 fqfn = os.path.join(path, fn)
                 log.debug(f"found incoming file {fqfn}")
-                with open(fqfn, "r") as ifn:
-                    line = ifn.readline()
-                log.debug(f"read url {line} from {fqfn}")
-                cmd = ["yt-dlp", line]
+                # with open(fqfn, "r") as ifn:
+                #     line = ifn.readline()
+                # log.debug(f"read url {line} from {fqfn}")
+                cmd = ["yt-dlp", "-a", fqfn]
                 log.debug(f"shellCommand: {cmd=}")
                 cout, cerr = shellCommand(cmd)
                 log.debug(f"{cout=}")

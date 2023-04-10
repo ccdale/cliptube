@@ -6,6 +6,7 @@ import ccalogging
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
+from cliptube.files import sendFileTo
 from cliptube.history import getNewUrls
 
 # ccalogging.setConsoleOut()
@@ -45,5 +46,17 @@ def watchparcellite():
                 log.debug(f"watchparcellite: {len(urls)} new urls found")
             ev.wait(int(cfg["parcellite"]["sleeptime"]))
         log.info(f"{__appname__} closing down, bye.")
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+def processNewUrls(urls):
+    try:
+        log.debug(f"sending {len(urls)} urls to mediaserver.")
+        tfn = f"/tmp/{__appname__}.list"
+        with open(tfn, "w") as ofn:
+            ofn.writelines(urls)
+        sendFileTo(tfn)
+        log.info(f"sent {len(urls)} urls to mediaserver")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
