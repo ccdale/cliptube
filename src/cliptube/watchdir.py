@@ -11,7 +11,8 @@ from cliptube.config import readConfig
 from cliptube.shell import shellCommand
 
 ccalogging.setLogFile(f"/home/chris/log/{__appname__}.log")
-ccalogging.setDebug()
+# ccalogging.setDebug()
+ccalogging.setInfo()
 log = ccalogging.log
 
 ev = threading.Event()

@@ -12,8 +12,8 @@ from cliptube.history import getNewUrls
 
 # ccalogging.setConsoleOut()
 ccalogging.setLogFile("/home/chris/log/cliptube.log")
-ccalogging.setDebug()
-# ccalogging.setInfo()
+# ccalogging.setDebug()
+ccalogging.setInfo()
 log = ccalogging.log
 
 # exitflag = False
