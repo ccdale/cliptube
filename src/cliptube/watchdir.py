@@ -1,7 +1,7 @@
 import os
 from signal import signal, SIGINT
 import sys
-import threading
+from threading import Event, Thread
 import time
 
 import ccalogging
@@ -16,7 +16,7 @@ ccalogging.setLogFile(f"/home/chris/log/{__appname__}.log")
 ccalogging.setInfo()
 log = ccalogging.log
 
-ev = threading.Event()
+ev = Event()
 ev.clear()
 
 
