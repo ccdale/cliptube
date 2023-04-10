@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=cliptube-dirwatch
+Comment=watch the youtube incoming directory
+Icon=/home/chris/.local/share/image/dirwatch-green.png
+Exec=/home/chris/.local/bin/cliptube-dirwatch
+Path=/
+Categories=Network
+X-Desktop-File-Install-Version=0.26
+

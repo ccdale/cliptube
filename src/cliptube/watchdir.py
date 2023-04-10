@@ -5,6 +5,7 @@ import threading
 import time
 
 import ccalogging
+import PySimpleGUIQt as sg
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
@@ -85,5 +86,29 @@ def dirWatch():
         log.info(f"dirWatch will watch {path}")
         watchDir(path)
         log.info("dirWatch completed")
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+def doTray():
+    try:
+        global ev
+        # wayland check for QT
+        xserver = os.environ.get("XDG_SESSION_TYPE", "Xorg")
+        if xserver == "wayland":
+            os.environ["QT_QPA_PLATFORM"] = "wayland"
+        fred = Thread(target=dirWatch, args=[])
+        fred.start()
+        log.info(f"Starting tray icon for {__appname__} mediaserver directory watcher")
+        menudef = ["E&xit"]
+        tray = sg.SystemTray(menu=menudef, filename=r"image/dirwatch-green.png", tooltip=f"{__appname__} directory watcher")
+        while True:
+            menuitem = tray.read()
+            if menuitem = "Exit":
+                ev.set()
+                break
+        log.info("removing tray icon for directory watcher")
+        log.info("waiting for thread to end")
+        fred.join()
+        log.info("thread has ended")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)

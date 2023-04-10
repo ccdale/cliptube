@@ -19,7 +19,7 @@ pytest = "^7.2.2"
 
 [tool.poetry.scripts]
 # cliptube = "cliptube.ct:main"
-ytdirwatch = "cliptube.watchdir:dirWatch"
+ytdirwatch = "cliptube.watchdir:doTray"
 cliptube = "cliptube.wclipboard:doTray"
 
 [build-system]

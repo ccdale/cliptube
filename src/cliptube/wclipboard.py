@@ -76,7 +76,7 @@ def doTray():
             os.environ["QT_QPA_PLATFORM"] = "wayland"
         fred = Thread(target=watchparcellite, args=[])
         fred.start()
-        log.info("Starting tray icon for cliptube")
+        log.info(f"Starting tray icon for {__appname__}")
         menudef = ["E&xit"]
         tray = sg.SystemTray(menu=menudef, filename=fr"image/{__appname__}.png", tooltip="Youtube clipboard watcher")
         while True:

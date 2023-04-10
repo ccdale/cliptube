@@ -4,6 +4,6 @@ Name=cliptube
 Comment=watch the clipboard for youtube urls
 Icon=/home/chris/.local/share/image/cliptube.png
 Exec=/home/chris/.local/bin/cliptube
-Path=/home/chris/src/cliptube
+Path=/
 Categories=Network
 X-Desktop-File-Install-Version=0.26
