@@ -89,6 +89,7 @@ def dirWatch():
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
+
 def doTray():
     try:
         global ev
@@ -100,10 +101,14 @@ def doTray():
         fred.start()
         log.info(f"Starting tray icon for {__appname__} mediaserver directory watcher")
         menudef = ["E&xit"]
-        tray = sg.SystemTray(menu=menudef, filename=r"image/dirwatch-green.png", tooltip=f"{__appname__} directory watcher")
+        tray = sg.SystemTray(
+            menu=menudef,
+            filename=r"image/dirwatch-green.png",
+            tooltip=f"{__appname__} directory watcher",
+        )
         while True:
             menuitem = tray.read()
-            if menuitem = "Exit":
+            if menuitem == "Exit":
                 ev.set()
                 break
         log.info("removing tray icon for directory watcher")

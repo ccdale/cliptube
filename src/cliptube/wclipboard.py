@@ -67,6 +67,7 @@ def processNewUrls(urls):
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
+
 def doTray():
     try:
         global ev
@@ -78,10 +79,14 @@ def doTray():
         fred.start()
         log.info(f"Starting tray icon for {__appname__}")
         menudef = ["E&xit"]
-        tray = sg.SystemTray(menu=menudef, filename=fr"image/{__appname__}.png", tooltip="Youtube clipboard watcher")
+        tray = sg.SystemTray(
+            menu=menudef,
+            filename=rf"image/{__appname__}.png",
+            tooltip="Youtube clipboard watcher",
+        )
         while True:
             menuitem = tray.read()
-            if menuitem = "Exit":
+            if menuitem == "Exit":
                 ev.set()
                 break
         log.info("removing tray icon for cliptube")
