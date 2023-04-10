@@ -80,9 +80,12 @@ def doTray():
         fred.start()
         log.info(f"Starting tray icon for {__appname__}")
         menudef = ["BLANK", ["E&xit"]]
+        iconfn = os.path.abspath(
+            os.path.expanduser(r"~/.local/share/image/cliptube.png")
+        )
         tray = sg.SystemTray(
             menu=menudef,
-            filename=rf"image/{__appname__}.png",
+            filename=iconfn,
             tooltip="Youtube clipboard watcher",
         )
         while True:

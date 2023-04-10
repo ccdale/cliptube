@@ -101,9 +101,12 @@ def doTray():
         fred.start()
         log.info(f"Starting tray icon for {__appname__} mediaserver directory watcher")
         menudef = ["BLANK", ["E&xit"]]
+        iconfn = os.path.abspath(
+            os.path.expanduser(rf"~/.local/share/image/dirwatch-green.png")
+        )
         tray = sg.SystemTray(
             menu=menudef,
-            filename=r"image/dirwatch-green.png",
+            filename=iconfn,
             tooltip=f"{__appname__} directory watcher",
         )
         while True:
