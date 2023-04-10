@@ -1,3 +1,4 @@
+from signal import signal, SIGINT
 import sys
 from threading import Event
 import time
@@ -46,7 +47,7 @@ def watchparcellite():
                 log.debug(f"watchparcellite: {len(urls)} new urls found")
                 processNewUrls(urls)
             log.debug(f'sleeping for {cfg["parcellite"]["sleeptime"]} seconds')
-            ev.wait(int(cfg["parcellite"]["sleeptime"]))
+            ev.wait(float(cfg["parcellite"]["sleeptime"]))
         log.info(f"{__appname__} closing down, bye.")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)

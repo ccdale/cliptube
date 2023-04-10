@@ -1,5 +1,6 @@
 import os
 import sys
+from urllib.parse import urlparse, parse_qs
 
 import ccalogging
 
