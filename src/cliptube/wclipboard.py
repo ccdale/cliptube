@@ -76,7 +76,7 @@ def doTray():
             os.environ["QT_QPA_PLATFORM"] = "wayland"
         fred = Thread(target=watchparcellite, args=[])
         fred.start()
-        log.info("Starting tray icon for directory watcher")
+        log.info("Starting tray icon for cliptube")
         menudef = ["E&xit"]
         tray = sg.SystemTray(menu=menudef, filename=r"image/watchdir-green.png", tooltip="Youtube incoming directory watcher")
         while True:
@@ -84,7 +84,7 @@ def doTray():
             if menuitem = "Exit":
                 ev.set()
                 break
-        log.info("removing tray icon for directory watcher")
+        log.info("removing tray icon for cliptube")
         log.info("waiting for thread to end")
         fred.join()
         log.info("thread has ended")
