@@ -21,6 +21,8 @@ def checkUrl(txt):
                 vid = dparsed["v"][0]
                 log.debug(f"video {vid} extracted from url")
                 return f"https://www.youtube.com/watch?v={vid}"
+        elif txt is not None and "youtu.be" in txt:
+            return txt.strip()
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
