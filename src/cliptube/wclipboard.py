@@ -39,17 +39,26 @@ def interruptWP(signrcvd, frame):
 signal(SIGINT, interruptWP)
 
 
+def checkForNewUrls():
+    try:
+        urls = getNewUrls()
+        if len(urls):
+            log.debug(f"watchparcellite: {len(urls)} new urls found")
+            processNewUrls(urls)
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
 def watchparcellite():
     try:
         log.info(f"{__appname__} {__version__} starting - CTRL-C to exit")
         cfg = readConfig()
         while not ev.is_set():
-            urls = getNewUrls()
-            if len(urls):
-                log.debug(f"watchparcellite: {len(urls)} new urls found")
-                processNewUrls(urls)
+            checkForNewUrls()
             log.debug(f'sleeping for {cfg["parcellite"]["sleeptime"]} seconds')
             ev.wait(float(cfg["parcellite"]["sleeptime"]))
+        # final check before exiting
+        checkForNewUrls()
         log.info(f"{__appname__} closing down, bye.")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
