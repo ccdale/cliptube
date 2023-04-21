@@ -6,6 +6,7 @@ import ccalogging
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
+from cliptube.shell import shellCommand
 
 log = ccalogging.log
 
@@ -57,13 +58,31 @@ def getNewUrls():
     try:
         xlist = readList()
         log.debug(f"{xlist=}")
-        hlist = readParcelliteHistoryFile()
+        # hlist = readParcelliteHistoryFile()
+        hlist = readParcelliteHistory()
         log.debug(f"{hlist=}")
         nlist = [x for x in hlist if x not in xlist]
         log.debug(f"{nlist=}")
         saveList(hlist)
         log.debug(f"{len(nlist)} new urls found")
         return nlist
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+def readParcelliteHistory():
+    try:
+        urls = []
+        cmd = ["parcellite", "-c"]
+        xout, xerr = shellCommand(cmd)
+        lines = [x.strip() for x in xout.split("\n")]
+        for line in lines:
+            if line.startswith("http"):
+                url = checkUrl(line)
+                if url is not None:
+                    urls.append(url)
+        log.debug(f"{len(urls)} urls found in parcellite history file")
+        return urls
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
