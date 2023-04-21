@@ -24,6 +24,8 @@ def checkUrl(txt):
                 return f"https://www.youtube.com/watch?v={vid}"
         elif txt is not None and "youtu.be" in txt:
             return txt.strip()
+        elif txt is not None and "youtube.com" in txt and "shorts" in txt:
+            return txt.strip()
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
