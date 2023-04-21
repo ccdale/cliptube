@@ -31,10 +31,12 @@ def getOutputFileName(cfg):
         # cfg = readConfig()
         fnum = int(cfg["youtube"]["filenumber"])
         nextn = fnum + 1
+        if nextn > 99:
+            nextn = 0
         cfg["youtube"]["filenumber"] = str(nextn)
         writeConfig(cfg)
         idir = os.path.abspath(os.path.expanduser(f'~/{cfg["youtube"]["incomingdir"]}'))
-        return f"{idir}/{fnum:0>3}"
+        return f"{idir}/{fnum:0>2}"
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
