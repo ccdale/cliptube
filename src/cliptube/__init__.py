@@ -1,6 +1,6 @@
 import sys
 
-__version__ = "0.4.10"
+__version__ = "0.5.0"
 __appname__ = "cliptube"
 
 
