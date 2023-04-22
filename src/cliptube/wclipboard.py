@@ -43,13 +43,29 @@ def checkForNewUrls():
     try:
         urls = getNewUrls()
         if len(urls):
-            log.debug(f"watchparcellite: {len(urls)} new urls found")
+            log.debug(f"watchclipboard: {len(urls)} new urls found")
             processNewUrls(urls)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
 
 def watchparcellite():
+    try:
+        log.info(f"{__appname__} {__version__} starting - CTRL-C to exit")
+        cfg = readConfig()
+        while not ev.is_set():
+            checkForNewUrls()
+            log.debug(f'sleeping for {cfg["parcellite"]["sleeptime"]} seconds')
+            ev.wait(float(cfg["parcellite"]["sleeptime"]))
+        # final check before exiting
+        log.info("Final check for urls before shutting down")
+        checkForNewUrls()
+        log.info(f"{__appname__} closing down, bye.")
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+def watchCopyQ():
     try:
         log.info(f"{__appname__} {__version__} starting - CTRL-C to exit")
         cfg = readConfig()
@@ -86,7 +102,7 @@ def doTray():
         xserver = os.environ.get("XDG_SESSION_TYPE", "Xorg")
         if xserver == "wayland":
             os.environ["QT_QPA_PLATFORM"] = "wayland"
-        fred = Thread(target=watchparcellite, args=[])
+        fred = Thread(target=watchCopyQ, args=[])
         fred.start()
         log.info(f"Starting tray icon for {__appname__}")
         menudef = ["BLANK", ["E&xit"]]
