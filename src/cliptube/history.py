@@ -58,7 +58,7 @@ def readList():
 
 def getNewUrls():
     try:
-        ccalogging.setDebug()
+        # ccalogging.setDebug()
         xlist = readList()
         log.debug(f"{xlist=}")
         # hlist = readParcelliteHistoryFile()
@@ -69,7 +69,7 @@ def getNewUrls():
         log.debug(f"{nlist=}")
         saveList(hlist)
         log.debug(f"{len(nlist)} new urls found")
-        ccalogging.setInfo()
+        # ccalogging.setInfo()
         return nlist
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
