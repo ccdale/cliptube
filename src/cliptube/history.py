@@ -58,16 +58,38 @@ def readList():
 
 def getNewUrls():
     try:
+        ccalogging.setDebug()
         xlist = readList()
         log.debug(f"{xlist=}")
         # hlist = readParcelliteHistoryFile()
-        hlist = readParcelliteHistory()
+        # hlist = readParcelliteHistory()
+        hlist = readCopyQHistory()
         log.debug(f"{hlist=}")
         nlist = [x for x in hlist if x not in xlist]
         log.debug(f"{nlist=}")
         saveList(hlist)
         log.debug(f"{len(nlist)} new urls found")
+        ccalogging.setInfo()
         return nlist
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+def readCopyQHistory():
+    try:
+        urls = []
+        cmd = ["copyq", "read"]
+        cns = [str(x) for x in range(21)]
+        cmd.extend(cns)
+        xout, xerr = shellCommand(cmd)
+        lines = [x.strip() for x in xout.split("\n")]
+        for line in lines:
+            if line.startswith("http"):
+                url = checkUrl(line)
+                if url is not None:
+                    urls.append(url)
+        log.debug(f"{len(urls)} urls found in copyq history file")
+        return urls
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
