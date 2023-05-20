@@ -98,6 +98,8 @@ def processNewUrls(urls):
 def doTray():
     try:
         global ev
+        pidfn = "/tmp/cliptube.pid"
+        oneOnly(pidfn)
         # wayland check for QT
         xserver = os.environ.get("XDG_SESSION_TYPE", "Xorg")
         if xserver == "wayland":
@@ -123,5 +125,21 @@ def doTray():
         log.info("waiting for thread to end")
         fred.join()
         log.info("thread has ended")
+        log.info(f"deleting pid file {pidfn}")
+        os.unlink(pidfn)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
+
+
+def oneOnly(pidfn):
+    try:
+        if os.path.exists(pidfn):
+            raise Exception(f"{__appname__} is already running")
+        with open(pidfn, "w") as ofn:
+            log.info("Writing pid file")
+            ofn.write(os.getpid())
+        with open(pidfn, "r") as ifn:
+            pidn = ifn.read()
+            log.info(f"running pid, read from pid file is {pidn}")
+    except Exception as e:
+        errorExit(sys.exc_info()[2], e)

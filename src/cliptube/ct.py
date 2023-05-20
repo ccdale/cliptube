@@ -180,24 +180,8 @@ def sendUrl(iurl):
         errorNotify(sys.exc_info()[2], e)
 
 
-def oneOnly(pidfn):
-    try:
-        if os.path.exists(pidfn):
-            raise Exception(f"{__appname__} is already running")
-        with open(pidfn, "w") as ofn:
-            log.debug("Writing pid file")
-            ofn.write(os.getpid())
-        with open(pidfn, "r") as ifn:
-            pidn = ifn.read()
-            log.debug(f"running pid, read from pid file is {pidn}")
-    except Exception as e:
-        errorExit(sys.exc_info()[2], e)
-
-
 def main():
     try:
-        pidfn = "/tmp/cliptube.pid"
-        oneOnly(pidfn)
         msg = f"{__appname__} {__version__} watching clipboard for youtube urls"
         log.info(msg)
         # wayland check for QT
@@ -233,7 +217,5 @@ def main():
 
         wcfred.join()
         wqfred.join()
-        log.debug(f"deleting pid file {pidfn}")
-        os.unlink(pidfn)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
