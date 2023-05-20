@@ -1,7 +1,11 @@
 import sys
 
-__version__ = "0.7.1"
+import ccalogging
+
+__version__ = "0.7.2"
 __appname__ = "cliptube"
+
+log = ccalogging.log
 
 
 def errorNotify(exci, e, fname=None):
@@ -10,7 +14,7 @@ def errorNotify(exci, e, fname=None):
         fname = exci.tb_frame.f_code.co_name
     ename = type(e).__name__
     msg = f"{ename} Exception at line {lineno} in function {fname}: {e}"
-    print(msg)
+    log.error(msg)
 
 
 def errorRaise(exci, e, fname=None):

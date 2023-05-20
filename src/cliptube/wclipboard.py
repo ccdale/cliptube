@@ -23,6 +23,10 @@ ev = Event()
 ev.clear()
 
 
+class OneOnly(Exception):
+    pass
+
+
 def interruptWP(signrcvd, frame):
     try:
         global ev
@@ -134,10 +138,10 @@ def doTray():
 def oneOnly(pidfn):
     try:
         if os.path.exists(pidfn):
-            raise Exception(f"{__appname__} is already running")
+            raise OneOnly(f"{__appname__} is already running")
         with open(pidfn, "w") as ofn:
             log.info("Writing pid file")
-            ofn.write(os.getpid())
+            ofn.write(f"{os.getpid()}\n")
         with open(pidfn, "r") as ifn:
             pidn = ifn.read()
             log.info(f"running pid, read from pid file is {pidn}")
