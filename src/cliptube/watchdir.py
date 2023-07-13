@@ -1,17 +1,17 @@
 import os
 from signal import signal, SIGINT
 import sys
-from threading import Event, Thread
+from threading import Event
 import time
 
 import ccalogging
-import PySimpleGUIQt as sg
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
 from cliptube.shell import shellCommand
 
-ccalogging.setLogFile(f"/home/chris/log/{__appname__}.log")
+logfile = os.path.abspath(os.path.expanduser(f"~/{__appname__}.log"))
+ccalogging.setLogFile(logfile)
 # ccalogging.setDebug()
 ccalogging.setInfo()
 log = ccalogging.log
@@ -78,45 +78,23 @@ def watchDir(path, sleeptime=60):
         errorNotify(sys.exc_info()[2], e)
 
 
+def getWatchPath(cfg):
+    try:
+        xp = cfg["youtube"]["incomingdir"]
+        if xp.startswith("/"):
+            return xp
+        return os.path.abspath(os.path.expanduser(f"~/{xp}"))
+    except Exception as e:
+        errorExit(sys.exc_info()[2], e)
+
+
 def dirWatch():
     try:
         log.info(f"starting {__appname__} {__version__} dirWatch")
         cfg = readConfig()
-        path = os.path.abspath(os.path.expanduser(f"~/{cfg['youtube']['incomingdir']}"))
+        path = getWatchPath(cfg)
         log.info(f"dirWatch will watch {path}")
         watchDir(path)
         log.info("dirWatch completed")
     except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
-
-
-def doTray():
-    try:
-        global ev
-        # wayland check for QT
-        xserver = os.environ.get("XDG_SESSION_TYPE", "Xorg")
-        if xserver == "wayland":
-            os.environ["QT_QPA_PLATFORM"] = "wayland"
-        fred = Thread(target=dirWatch, args=[])
-        fred.start()
-        log.info(f"Starting tray icon for {__appname__} mediaserver directory watcher")
-        menudef = ["BLANK", ["E&xit"]]
-        iconfn = os.path.abspath(
-            os.path.expanduser(rf"~/.local/share/image/dirwatch-green.png")
-        )
-        tray = sg.SystemTray(
-            menu=menudef,
-            filename=iconfn,
-            tooltip=f"{__appname__} directory watcher",
-        )
-        while True:
-            menuitem = tray.read()
-            if menuitem == "Exit":
-                ev.set()
-                break
-        log.info("removing tray icon for directory watcher")
-        log.info("waiting for thread to end")
-        fred.join()
-        log.info("thread has ended")
-    except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
+        errorExit(sys.exc_info()[2], e)
