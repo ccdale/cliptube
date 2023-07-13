@@ -66,12 +66,9 @@ def findOrphans():
         log.info(f"found {len(deletelist)} files to delete")
         # log.debug(f"will delete {deletelist}")
         log.debug("deleting the following files")
-        cn = 0
         for fn in deletelist:
             log.debug(fn)
             os.unlink(fn)
-            cn += 1
-            if cn > 10:
-                break
+        log.info(f"{__appname__} {__version__} findOrphans run completed.")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
