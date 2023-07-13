@@ -64,6 +64,14 @@ def findOrphans():
                 log.debug(f"{fn} ({len(entries[fn])} subtitle files) - orphaned")
                 deletelist.extend(entries[fn])
         log.info(f"found {len(deletelist)} files to delete")
-        log.debug(f"will delete {deletelist}")
+        # log.debug(f"will delete {deletelist}")
+        log.debug("deleting the following files")
+        cn = 0
+        for fn in deletelist:
+            log.debug(fn)
+            os.unlink(fn)
+            cn += 1
+            if cn > 10:
+                break
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
