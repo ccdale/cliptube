@@ -48,6 +48,12 @@ def findOrphans():
         deletelist = []
         for file in files:
             fn, ext = os.path.splitext(file)
+            # subtitle files have 2 exts, '.vtt' and a language code
+            # i.e. somefile.en-blah.vtt, somefile.en-en.vtt etc
+            if ext == ".vtt":
+                xfn, xext = os.path.splitext(fn)
+                if xext.startswith(".en"):
+                    fn = xfn
             if fn not in entries:
                 entries[fn] = []
             entries[fn].append(file)
