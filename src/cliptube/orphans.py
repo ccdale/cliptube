@@ -48,7 +48,8 @@ def findOrphans():
         deletelist = []
         for file in files:
             fn, ext = os.path.splitext(file)
-            _ = entries.get(fn, [])
+            if fn not in entries:
+                entries[fn] = []
             entries[fn].append(file)
         log.debug(f"found {len(entries.keys())} file sets in {path}")
         for fn in entries:
