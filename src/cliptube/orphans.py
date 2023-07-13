@@ -61,7 +61,7 @@ def findOrphans():
         for fn in entries:
             log.debug(f"checking whether {fn} has orphaned subtitle files")
             if not hasVideo(entries[fn]):
-                log.debug(f"{fn} is orphaned")
+                log.debug(f"{fn} ({len(entries[fn])} subtitle files) - orphaned")
                 deletelist.extend(entries[fn])
         log.info(f"found {len(deletelist)} files to delete")
         log.debug(f"will delete {deletelist}")
