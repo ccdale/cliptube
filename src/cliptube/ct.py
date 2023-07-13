@@ -39,7 +39,8 @@ from cliptube.history import checkUrl
 
 # appname = "cliptube"
 # ccalogging.setConsoleOut()
-ccalogging.setLogFile("/home/chris/log/cliptube.log")
+logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
+ccalogging.setLogFile(logfile)
 ccalogging.setDebug()
 # ccalogging.setInfo()
 log = ccalogging.log

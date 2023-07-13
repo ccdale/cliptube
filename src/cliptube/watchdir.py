@@ -10,7 +10,7 @@ from cliptube import __appname__, __version__, errorExit, errorNotify, errorRais
 from cliptube.config import readConfig
 from cliptube.shell import shellCommand
 
-logfile = os.path.abspath(os.path.expanduser(f"~/{__appname__}.log"))
+logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
 ccalogging.setLogFile(logfile)
 # ccalogging.setDebug()
 ccalogging.setInfo()
