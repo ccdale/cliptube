@@ -43,7 +43,7 @@ def findOrphans():
         log.debug(f"changing working directory to {path}")
         os.chdir(path)
         files = os.listdir()
-        log.debug(f"found {len(files)} files in {path}")
+        log.info(f"found {len(files)} files in {path}")
         entries = {}
         deletelist = []
         for file in files:
@@ -57,7 +57,7 @@ def findOrphans():
             if fn not in entries:
                 entries[fn] = []
             entries[fn].append(file)
-        log.debug(f"found {len(entries.keys())} file sets in {path}")
+        log.info(f"found {len(entries.keys())} file sets in {path}")
         for fn in entries:
             log.debug(f"checking whether {fn} has orphaned subtitle files")
             if not hasVideo(entries[fn]):
