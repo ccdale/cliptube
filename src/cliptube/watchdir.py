@@ -4,17 +4,14 @@ import sys
 from threading import Event
 import time
 
+import daemon
 import ccalogging
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
 from cliptube.shell import shellCommand
 
-logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
-ccalogging.setLogFile(logfile)
-# ccalogging.setDebug()
-ccalogging.setInfo()
-log = ccalogging.log
+log = None
 
 ev = Event()
 ev.clear()
@@ -96,5 +93,22 @@ def dirWatch():
         log.info(f"dirWatch will watch {path}")
         watchDir(path)
         log.info("dirWatch completed")
+    except Exception as e:
+        errorExit(sys.exc_info()[2], e)
+
+
+def daemonDirWatch():
+    try:
+        global log
+        with daemon.DaemonContext():
+            logfile = os.path.abspath(
+                os.path.expanduser(f"~/log/{__appname__}-watchdir.log")
+            )
+            ccalogging.setLogFile(logfile)
+            # ccalogging.setDebug()
+            ccalogging.setInfo()
+            log = ccalogging.log
+            log.debug(f"{__appname__}-watchdir deamonised!")
+            dirWatch()
     except Exception as e:
         errorExit(sys.exc_info()[2], e)

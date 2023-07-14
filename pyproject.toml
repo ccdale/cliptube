@@ -22,6 +22,7 @@ pytest = "^7.2.2"
 ytdirwatch = "cliptube.watchdir:dirWatch"
 cliptube = "cliptube.wclipboard:doTray"
 orphans = "cliptube.orphans:findOrphans"
+ddirwatch = "cliptube.watchdir:daemonDirWatch"
 
 [build-system]
 requires = ["poetry-core"]
