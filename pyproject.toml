@@ -12,6 +12,7 @@ pyclip = "^0.7.0"
 ccalogging = "^0.4.4"
 fabric = "^3.0.0"
 pysimpleguiqt = "^0.35.0"
+python-daemon = "^3.0.1"
 
 
 [tool.poetry.group.dev.dependencies]
