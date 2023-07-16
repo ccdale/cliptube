@@ -19,7 +19,6 @@ python-daemon = "^3.0.1"
 pytest = "^7.2.2"
 
 [tool.poetry.scripts]
-ytdirwatch = "cliptube.watchdir:dirWatch"
 cliptube = "cliptube.wclipboard:doTray"
 orphans = "cliptube.orphans:findOrphans"
 ddirwatch = "cliptube.watchdir:daemonDirWatch"
