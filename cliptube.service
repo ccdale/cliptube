@@ -3,6 +3,7 @@ Description=cliptube directory watcher
 
 [Service]
 User=chris
+Group=chris
 ExecStart=/home/chris/.local/bin/ddirwatch
 
 [Install]
