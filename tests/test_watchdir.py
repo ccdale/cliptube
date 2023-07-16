@@ -16,19 +16,14 @@
 #     You should have received a copy of the GNU General Public License
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
-
 import os
 
-from cliptube.config import ConfigFileNotFound, readConfig
-from cliptube.files import getOutputFileName, homeDir
+from cliptube.watchdir import getFiles
 
 
-def test_getOutputFileName():
-    cfg = readConfig()
-    ofn = getOutputFileName(cfg)
-    assert ofn.startswith("/home/chris/youtube/incoming/")
-
-
-def test_homeDir():
-    homed = homeDir()
-    assert os.path.abspath(os.path.expanduser("~")) == homed
+def test_getFiles():
+    tfn = "/tmp/testfn"
+    with open(tfn, "w") as ofn:
+        pass
+    fns = getFiles("/tmp")
+    assert tfn in fns

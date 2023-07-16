@@ -37,7 +37,7 @@ def test_cliptube_version():
     assert __version__ == "0.9.3"
 
 
-def test_errorNotify(capsys):
+def test_errorNotify(caplog):
     try:
         msg = "This is the test exception"
         raise TheException(msg)
@@ -49,11 +49,11 @@ def test_errorNotify(capsys):
         errorNotify(exci, e)
     finally:
         emsg = f"{ename} Exception at line {lineno} in function {fname}: {msg}\n"
-        out, err = capsys.readouterr()
-        assert out == emsg
+        # out, err = capsys.readouterr()
+        assert emsg in caplog.text
 
 
-def test_errorRaise(capsys):
+def test_errorRaise(caplog):
     """It raises the TheException Exception after printing the error."""
     try:
         msg = "This is the test exception"
@@ -67,11 +67,12 @@ def test_errorRaise(capsys):
             errorRaise(exci, e)
     finally:
         emsg = f"{ename} Exception at line {lineno} in function {fname}: {msg}\n"
-        out, err = capsys.readouterr()
-        assert out == emsg
+        # out, err = capsys.readouterr()
+        # assert out == emsg
+        assert emsg in caplog.text
 
 
-def test_errorExit(capsys):
+def test_errorExit(caplog):
     """It attempts sys.exit after printing the error."""
     try:
         msg = "This is the test exception"
@@ -85,5 +86,6 @@ def test_errorExit(capsys):
             errorExit(exci, e)
     finally:
         emsg = f"{ename} Exception at line {lineno} in function {fname}: {msg}\n"
-        out, err = capsys.readouterr()
-        assert out == emsg
+        # out, err = capsys.readouterr()
+        # assert out == emsg
+        assert emsg in caplog.text
