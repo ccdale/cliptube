@@ -62,7 +62,7 @@ def dirFileList(path):
         errorNotify(sys.exc_info()[2], e)
 
 
-def getFiles(path):
+def getVideos(path):
     try:
         files = dirFileList(path)
         if files is not None:
@@ -87,7 +87,7 @@ def watchDir(path, sleeptime=60):
     try:
         log.debug(f"watch dir {__version__} starting to watch {path}")
         while not ev.is_set():
-            getFiles(path)
+            getVideos(path)
             ev.wait(sleeptime)
         log.debug("watch dir completed")
     except Exception as e:
