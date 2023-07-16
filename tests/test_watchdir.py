@@ -18,12 +18,12 @@
 #
 import os
 
-from cliptube.watchdir import getFiles
+from cliptube.watchdir import dirFileList
 
 
 def test_getFiles():
     tfn = "/tmp/testfn"
     with open(tfn, "w") as ofn:
         pass
-    fns = getFiles("/tmp")
+    fns = dirFileList("/tmp")
     assert tfn in fns
