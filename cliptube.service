@@ -3,7 +3,8 @@ Description=cliptube directory watcher
 
 [Service]
 Type=forking
-ExecStart=/home/chris/.local/bin/ddirwatch
+PidFile=%h/.local/var/run/cliptube-dirwatch.pid
+ExecStart=%h/.local/bin/ddirwatch
 
 [Install]
 WantedBy=default.target

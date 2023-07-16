@@ -55,3 +55,10 @@ def sendFileTo(fn):
             c.put(fn, ofn)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
+
+
+def homeDir():
+    try:
+        return os.path.expandvars("$HOME")
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
