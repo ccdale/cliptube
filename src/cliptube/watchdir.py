@@ -5,7 +5,6 @@ from threading import Event
 import time
 
 import daemon
-import ccalogging
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
@@ -101,6 +100,8 @@ def daemonDirWatch():
     try:
         global log
         with daemon.DaemonContext():
+            import ccalogging
+
             logfile = os.path.abspath(
                 os.path.expanduser(f"~/log/{__appname__}-watchdir.log")
             )
