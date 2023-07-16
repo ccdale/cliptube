@@ -18,12 +18,14 @@
 #
 import os
 
-from cliptube.watchdir import dirFileList
+from cliptube.files import dirFileList
 
 
 def test_getFiles():
-    tfn = "/tmp/testfn"
+    bfn = "testfn"
+    tfn = "/".join(["/tmp", bfn])
     with open(tfn, "w") as ofn:
         pass
     fns = dirFileList("/tmp")
-    assert tfn in fns
+    assert bfn in fns
+    os.unlink(tfn)

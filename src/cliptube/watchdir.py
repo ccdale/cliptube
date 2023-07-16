@@ -28,6 +28,7 @@ from ccalogging import log
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
+from cliptube.files import dirFileList
 from cliptube.shell import shellCommand
 
 # log = None
@@ -50,16 +51,6 @@ def interruptWD(signrcvd, frame):
 # if we get a `ctrl-c` from the keyboard, stop immediately
 # by going to the interruptCT above
 signal(SIGINT, interruptWD)
-
-
-def dirFileList(path):
-    try:
-        if os.path.isdir(path):
-            return [
-                f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))
-            ]
-    except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
 
 
 def getVideos(path):
