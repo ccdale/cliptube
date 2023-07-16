@@ -2,6 +2,7 @@
 Description=cliptube directory watcher
 
 [Service]
+Type=forking
 ExecStart=/home/chris/.local/bin/ddirwatch
 
 [Install]
