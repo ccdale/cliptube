@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from urllib.parse import urlparse, parse_qs
@@ -26,6 +27,8 @@ def checkUrl(txt):
             return txt.strip()
         elif txt is not None and "youtube.com" in txt and "shorts" in txt:
             return txt.strip()
+        else:
+            return None
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
@@ -63,7 +66,8 @@ def getNewUrls():
         log.debug(f"{xlist=}")
         # hlist = readParcelliteHistoryFile()
         # hlist = readParcelliteHistory()
-        hlist = readCopyQHistory()
+        # hlist = readCopyQHistory()
+        hlist = readGnomeClipIndicatorFile()
         log.debug(f"{hlist=}")
         nlist = [x for x in hlist if x not in xlist]
         log.debug(f"{nlist=}")
@@ -126,6 +130,25 @@ def readParcelliteHistoryFile():
                 if url is not None:
                     urls.append(url)
         log.debug(f"{len(urls)} urls found in parcellite history file")
+        return urls
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+def readGnomeClipIndicatorFile():
+    try:
+        cfg = readConfig()
+        histfile = os.path.abspath(
+            os.path.expanduser(cfg["gnomeclipindicator"]["histfile"])
+        )
+        with open(histfile, "r") as ifn:
+            hist = json.load(ifn)
+        lines = [x["contents"] for x in hist if x["contents"].startswith("http")]
+        urls = []
+        for line in lines:
+            url = checkUrl(line)
+            if url is not None:
+                urls.append(url)
         return urls
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
