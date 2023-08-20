@@ -86,6 +86,22 @@ def watchCopyQ():
         errorNotify(sys.exc_info()[2], e)
 
 
+def watchGnomeClipboard():
+    try:
+        log.info(f"{__appname__} {__version__} starting - CTRL-C to exit")
+        cfg = readConfig()
+        while not ev.is_set():
+            checkForNewUrls()
+            log.debug(f'sleeping for {cfg["gnomeclipindicator"]["sleeptime"]} seconds')
+            ev.wait(float(cfg["gnomeclipindicator"]["sleeptime"]))
+        # final check before exiting
+        log.info("Final check for urls before shutting down")
+        checkForNewUrls()
+        log.info(f"{__appname__} closing down, bye.")
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
 def processNewUrls(urls):
     try:
         log.debug(f"sending {len(urls)} urls to mediaserver.")
@@ -109,7 +125,8 @@ def doTray():
         xserver = os.environ.get("XDG_SESSION_TYPE", "Xorg")
         if xserver == "wayland":
             os.environ["QT_QPA_PLATFORM"] = "wayland"
-        fred = Thread(target=watchCopyQ, args=[])
+        # fred = Thread(target=watchCopyQ, args=[])
+        fred = Thread(target=watchGnomeClipboard, args=[])
         fred.start()
         log.info(f"Starting tray icon for {__appname__}")
         menudef = ["BLANK", ["E&xit"]]
