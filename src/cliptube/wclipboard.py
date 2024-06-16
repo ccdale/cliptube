@@ -24,7 +24,7 @@ ev = Event()
 ev.clear()
 
 
-class OneOnly(Exception):
+class onlyOne(Exception):
     pass
 
 
@@ -156,7 +156,9 @@ def doTray():
 def oneOnly(pidfn):
     try:
         if os.path.exists(pidfn):
-            raise OneOnly(f"{__appname__} is already running")
+            ipid = checkPid(pidfn)
+            if ipid != False:
+                raise onlyOne(f"{__appname__} is already running with pid {ipid}")
         with open(pidfn, "w") as ofn:
             log.info("Writing pid file")
             ofn.write(f"{os.getpid()}\n")
@@ -165,3 +167,20 @@ def oneOnly(pidfn):
             log.info(f"running pid, read from pid file is {pidn}")
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
+
+
+def checkPid(pidfn):
+    """checks that the pid in file pidfn is still running, pidfn should exist"""
+    try:
+        with open(pidfn, "r") as ifn:
+            pidn = ifn.read()
+            try:
+                os.kill(int(pidn), 0)
+                return int(pidn)
+            except OSError:
+                log.info(f"previous pid {pidn} not running")
+                return False
+    except Exception as e:
+        errorRaise(sys.exc_info()[2], e)
+    finally:
+        return False
