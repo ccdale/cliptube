@@ -137,7 +137,7 @@ def watchClipboard(Q, ev, magic="STOPCLIPBOARDWATCH"):
                 Q.put("STOP")
                 ev.set()
                 break
-            url = checkUrl(txt)
+            url, vtype = checkUrl(txt)
             if url is not None:
                 # sendUrl(url)
                 log.debug(f"putting {url} on Q")

@@ -102,16 +102,71 @@ def watchGnomeClipboard():
         errorNotify(sys.exc_info()[2], e)
 
 
-def processNewUrls(urls):
+def sortUrls(urls):
     try:
-        log.debug(f"sending {len(urls)} urls to mediaserver.")
+        plists = []
+        iplayer = []
+        videos = []
+        for url in urls:
+            if "playlist" in url:
+                log.debug(f"playlist url found: {url}")
+                plists.append(url)
+            elif "iplayer" in url:
+                iplayer.append(url)
+        videos.extend([x for x in urls if x not in plists and x not in iplayer])
+        return plists, iplayer, videos
+    except Exception as e:
+        errorRaise(sys.exc_info()[2], e)
+
+
+def processVideoUrls(videos):
+    try:
+        log.debug(f"sending {len(videos)} video urls to mediaserver.")
         tfn = f"/tmp/{__appname__}.list"
         with open(tfn, "w") as ofn:
-            ofn.write("\n".join(urls))
+            ofn.write("\n".join(videos))
             ofn.write("\n")
-            # ofn.writelines(urls)
-        sendFileTo(tfn)
-        log.info(f"sent {len(urls)} urls to mediaserver")
+        sendFileTo(tfn, vtype="v")
+        log.info(f"sent {len(videos)} video urls to mediaserver")
+    except Exception as e:
+        errorRaise(sys.exc_info()[2], e)
+
+
+def processPlaylistUrls(videos):
+    try:
+        log.debug(f"sending {len(videos)} playlist urls to mediaserver.")
+        tfn = f"/tmp/{__appname__}.list"
+        with open(tfn, "w") as ofn:
+            ofn.write("\n".join(videos))
+            ofn.write("\n")
+        sendFileTo(tfn, vtype="p")
+        log.info(f"sent {len(videos)} playlist urls to mediaserver")
+    except Exception as e:
+        errorRaise(sys.exc_info()[2], e)
+
+
+def processIPlayerUrls(videos):
+    try:
+        log.debug(f"sending {len(videos)} iplayer urls to mediaserver.")
+        tfn = f"/tmp/{__appname__}.list"
+        with open(tfn, "w") as ofn:
+            ofn.write("\n".join(videos))
+            ofn.write("\n")
+        sendFileTo(tfn, vtype="i")
+        log.info(f"sent {len(videos)} iplayer urls to mediaserver")
+    except Exception as e:
+        errorRaise(sys.exc_info()[2], e)
+
+
+def processNewUrls(urls):
+    try:
+        plists, iplayer, videos = sortUrls(urls)
+        if len(videos):
+            processVideoUrls(videos)
+        if len(plists):
+            processPlaylistUrls(plists)
+        if len(iplayer):
+            processIPlayerUrls(iplayer)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 

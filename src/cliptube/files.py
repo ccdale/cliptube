@@ -26,7 +26,7 @@ from cliptube import errorNotify
 from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
 
 
-def getOutputFileName(cfg):
+def getOutputFileName(cfg, vtype="v"):
     try:
         # cfg = readConfig()
         fnum = int(cfg["youtube"]["filenumber"])
@@ -35,13 +35,25 @@ def getOutputFileName(cfg):
             nextn = 0
         cfg["youtube"]["filenumber"] = str(nextn)
         writeConfig(cfg)
-        idir = os.path.abspath(os.path.expanduser(f'~/{cfg["youtube"]["incomingdir"]}'))
+        if vtype == "v":
+            idir = os.path.abspath(
+                os.path.expanduser(f'~/{cfg["youtube"]["videodir"]}')
+            )
+        elif vtype == "p":
+            idir = os.path.abspath(
+                os.path.expanduser(f'~/{cfg["youtube"]["playlistdir"]}')
+            )
+        elif vtype == "i":
+            idir = os.path.abspath(
+                os.path.expanduser(f'~/{cfg["youtube"]["iplayerdir"]}')
+            )
+        # idir = os.path.abspath(os.path.expanduser(f'~/{cfg["youtube"]["incomingdir"]}'))
         return f"{idir}/{fnum:0>2}"
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
 
-def sendFileTo(fn):
+def sendFileTo(fn, vtype="v"):
     try:
         cfg = readConfig()
         mhost = cfg["mediaserver"]["host"]
@@ -50,7 +62,7 @@ def sendFileTo(fn):
             os.path.expanduser(f'~/.ssh/{cfg["mediaserver"]["keyfn"]}')
         )
         ckwargs = {"key_filename": mkeyfn}
-        ofn = getOutputFileName(cfg)
+        ofn = getOutputFileName(cfg, vtype=vtype)
         with Connection(host=mhost, user=muser, connect_kwargs=ckwargs) as c:
             c.put(fn, ofn)
     except Exception as e:
