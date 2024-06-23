@@ -5,7 +5,6 @@ from threading import Event, Thread
 import time
 
 import ccalogging
-import PySimpleGUIQt as sg
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
@@ -88,6 +87,8 @@ def watchCopyQ():
 
 def watchGnomeClipboard():
     try:
+        pidfn = "/tmp/cliptube.pid"
+        oneOnly(pidfn)
         log.info(f"{__appname__} {__version__} starting - CTRL-C to exit")
         cfg = readConfig()
         while not ev.is_set():
@@ -99,7 +100,7 @@ def watchGnomeClipboard():
         checkForNewUrls()
         log.info(f"{__appname__} closing down, bye.")
     except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
+        errorExit(sys.exc_info()[2], e)
 
 
 def sortUrls(urls):
@@ -167,43 +168,6 @@ def processNewUrls(urls):
             processPlaylistUrls(plists)
         if len(iplayer):
             processIPlayerUrls(iplayer)
-    except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
-
-
-def doTray():
-    try:
-        global ev
-        pidfn = "/tmp/cliptube.pid"
-        oneOnly(pidfn)
-        # wayland check for QT
-        xserver = os.environ.get("XDG_SESSION_TYPE", "Xorg")
-        if xserver == "wayland":
-            os.environ["QT_QPA_PLATFORM"] = "wayland"
-        # fred = Thread(target=watchCopyQ, args=[])
-        fred = Thread(target=watchGnomeClipboard, args=[])
-        fred.start()
-        log.info(f"Starting tray icon for {__appname__}")
-        menudef = ["BLANK", ["E&xit"]]
-        iconfn = os.path.abspath(
-            os.path.expanduser(r"~/.local/share/image/cliptube.png")
-        )
-        tray = sg.SystemTray(
-            menu=menudef,
-            filename=iconfn,
-            tooltip="Youtube clipboard watcher",
-        )
-        while True:
-            menuitem = tray.read()
-            if menuitem == "Exit":
-                ev.set()
-                break
-        log.info("removing tray icon for cliptube")
-        log.info("waiting for thread to end")
-        fred.join()
-        log.info("thread has ended")
-        log.info(f"deleting pid file {pidfn}")
-        os.unlink(pidfn)
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 

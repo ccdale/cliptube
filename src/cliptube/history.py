@@ -93,7 +93,7 @@ def readCopyQHistory():
         lines = [x.strip() for x in xout.split("\n")]
         for line in lines:
             if line.startswith("http"):
-                url, vtype = checkUrl(line)
+                url = checkUrl(line)
                 if url is not None:
                     urls.append(url)
         log.debug(f"{len(urls)} urls found in copyq history file")
@@ -110,7 +110,7 @@ def readParcelliteHistory():
         lines = [x.strip() for x in xout.split("\n")]
         for line in lines:
             if line.startswith("http"):
-                url, vtype = checkUrl(line)
+                url = checkUrl(line)
                 if url is not None:
                     urls.append(url)
         log.debug(f"{len(urls)} urls found in parcellite history file")
@@ -130,7 +130,7 @@ def readParcelliteHistoryFile():
         urls = []
         for line in lines:
             if line.startswith("http"):
-                url, vtype = checkUrl(line)
+                url = checkUrl(line)
                 if url is not None:
                     urls.append(url)
         log.debug(f"{len(urls)} urls found in parcellite history file")
@@ -150,7 +150,7 @@ def readGnomeClipIndicatorFile():
         lines = [x["contents"] for x in hist if x["contents"].startswith("http")]
         urls = []
         for line in lines:
-            url, vtype = checkUrl(line)
+            url = checkUrl(line)
             if url is not None:
                 urls.append(url)
         return urls

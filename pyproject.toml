@@ -7,13 +7,9 @@ readme = "README.md"
 packages = [{include = "cliptube", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.12, <3.13"
-pyclip = "*"
+python = "^3.11"
 ccalogging = "*"
 fabric = "*"
-pysimpleguiqt = "*"
-python-daemon = "*"
-pyside6 = "^6.7.2"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -23,6 +19,7 @@ pytest = "*"
 cliptube = "cliptube.wclipboard:doTray"
 orphans = "cliptube.orphans:findOrphans"
 ddirwatch = "cliptube.watchdir:daemonDirWatch"
+gcbwatch = "cliptube.wclipboard:watchGnomeClipboard"
 
 [build-system]
 requires = ["poetry-core"]
