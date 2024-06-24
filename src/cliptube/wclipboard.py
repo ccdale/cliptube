@@ -11,11 +11,11 @@ from cliptube.config import readConfig
 from cliptube.files import sendFileTo
 from cliptube.history import getNewUrls
 
-# ccalogging.setConsoleOut()
-logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
-ccalogging.setLogFile(logfile)
-# ccalogging.setDebug()
-ccalogging.setInfo()
+ccalogging.setConsoleOut()
+# logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
+# ccalogging.setLogFile(logfile)
+ccalogging.setDebug()
+# ccalogging.setInfo()
 log = ccalogging.log
 
 # exitflag = False
