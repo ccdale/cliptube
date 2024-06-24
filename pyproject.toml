@@ -16,7 +16,6 @@ fabric = "*"
 pytest = "*"
 
 [tool.poetry.scripts]
-cliptube = "cliptube.wclipboard:doTray"
 orphans = "cliptube.orphans:findOrphans"
 ddirwatch = "cliptube.watchdir:daemonDirWatch"
 gcbwatch = "cliptube.wclipboard:watchGnomeClipboard"
