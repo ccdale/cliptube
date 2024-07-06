@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, Chris Allison
+# Copyright (c) 2023-2024, Chris Allison
 #
 #     This file is part of cliptube.
 #

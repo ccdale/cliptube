@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2023, Chris Allison
+# Copyright (c) 2023-2024, Chris Allison
 #
 #     This file is part of cliptube.
 #
@@ -18,17 +18,23 @@
 #
 
 import os
+import re
 
 from cliptube.config import ConfigFileNotFound, readConfig
 from cliptube.files import getOutputFileName, homeDir
 
 
-def test_getOutputFileName():
-    cfg = readConfig()
-    ofn = getOutputFileName(cfg)
-    assert ofn.startswith("/home/chris/youtube/incoming/")
-
-
 def test_homeDir():
     homed = homeDir()
     assert os.path.abspath(os.path.expanduser("~")) == homed
+
+
+def test_getOutputFileName():
+    homed = homeDir()
+    cfg = readConfig()
+    ofn = getOutputFileName(cfg, vtype="v")
+    assert ofn.startswith(f"{homed}/.cliptube/videos")
+    ofn = getOutputFileName(cfg, vtype="p")
+    assert ofn.startswith(f"{homed}/.cliptube/playlists")
+    ofn = getOutputFileName(cfg, vtype="i")
+    assert ofn.startswith(f"{homed}/.cliptube/iplayer")

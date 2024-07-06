@@ -16,16 +16,9 @@
 #     You should have received a copy of the GNU General Public License
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
-import os
+import sys
 
-from cliptube.files import dirFileList
+import ccalogging
+from ccalogging import log
 
-
-def test_getFiles():
-    bfn = "testfn"
-    tfn = "/".join(["/tmp", bfn])
-    with open(tfn, "w") as ofn:
-        pass
-    fns = dirFileList("/tmp")
-    assert bfn in fns
-    os.unlink(tfn)
+from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
