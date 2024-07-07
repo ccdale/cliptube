@@ -34,7 +34,6 @@ def test_homeDir():
     homed = homeDir()
     tilde = "~/"
     assert expandPath(tilde) == homed
-    # assert os.path.abspath(os.path.expanduser("~")) == homed
 
 
 def test_getOutputFileName():

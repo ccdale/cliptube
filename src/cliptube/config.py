@@ -25,6 +25,7 @@ import sys
 
 from cliptube import __appname__
 from cliptube import errorRaise
+from cliptube.files import expandPath
 
 
 class ConfigFileNotFound(Exception):
@@ -34,11 +35,9 @@ class ConfigFileNotFound(Exception):
 def readConfig(overrideappname=None):
     try:
         if overrideappname is None:
-            absfn = os.path.abspath(os.path.expanduser(f"~/.config/{__appname__}.cfg"))
+            absfn = expandPath(f"~/.config/{__appname__}.cfg")
         else:
-            absfn = os.path.abspath(
-                os.path.expanduser(f"~/.config/{overrideappname}.cfg")
-            )
+            absfn = expandPath(f"~/.config/{overrideappname}.cfg")
         cfgpath = Path(absfn)
         if not cfgpath.exists():
             raise ConfigFileNotFound(f"cannot find config file: {cfgpath}")
@@ -51,7 +50,7 @@ def readConfig(overrideappname=None):
 
 def writeConfig(cfg):
     try:
-        absfn = os.path.abspath(os.path.expanduser(f"~/.config/{__appname__}.cfg"))
+        absfn = expandPath(f"~/.config/{__appname__}.cfg")
         with open(absfn, "w") as ofn:
             cfg.write(ofn)
     except Exception as e:

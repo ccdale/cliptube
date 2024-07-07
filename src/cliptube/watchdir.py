@@ -28,7 +28,7 @@ from ccalogging import log
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
-from cliptube.files import dirFileList
+from cliptube.files import dirFileList, expandPath
 from cliptube.shell import shellCommand
 
 # log = None
@@ -90,7 +90,7 @@ def getWatchPath(cfg):
         xp = cfg["youtube"]["incomingdir"]
         if xp.startswith("/"):
             return xp
-        return os.path.abspath(os.path.expanduser(f"~/{xp}"))
+        return expandPath(f"~/{xp}")
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
 
@@ -111,9 +111,7 @@ def daemonDirWatch():
     try:
         # global log
         with daemon.DaemonContext():
-            logfile = os.path.abspath(
-                os.path.expanduser(f"~/log/{__appname__}-watchdir.log")
-            )
+            logfile = expandPath(f"~/log/{__appname__}-watchdir.log")
             ccalogging.setLogFile(logfile)
             # ccalogging.setDebug()
             ccalogging.setInfo()

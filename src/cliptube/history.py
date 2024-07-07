@@ -7,6 +7,7 @@ import ccalogging
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
+from cliptube.files import expandPath
 from cliptube.shell import shellCommand
 
 log = ccalogging.log
@@ -39,7 +40,7 @@ def checkUrl(txt):
 
 def saveList(urls):
     try:
-        fn = os.path.abspath(os.path.expanduser(f"~/.config/{__appname__}.list"))
+        fn = expandPath(f"~/.config/{__appname__}.list")
         log.debug(f"{len(urls)} urls saved to {__appname__} history")
         with open(fn, "w") as ofn:
             ofn.write("\n".join(urls))
@@ -52,7 +53,7 @@ def saveList(urls):
 def readList():
     try:
         xlist = []
-        fn = os.path.abspath(os.path.expanduser(f"~/.config/{__appname__}.list"))
+        fn = expandPath(f"~/.config/{__appname__}.list")
         if os.path.exists(fn):
             with open(fn, "r") as ifn:
                 # strip the newline of the end of each line as it comes in
@@ -122,7 +123,7 @@ def readParcelliteHistory():
 def readParcelliteHistoryFile():
     try:
         cfg = readConfig()
-        histfile = os.path.abspath(os.path.expanduser(cfg["parcellite"]["histfile"]))
+        histfile = expandPath(cfg["parcellite"]["histfile"])
         with open(histfile, "r") as ifn:
             hist = ifn.readlines()
         lines = hist[0].split("\x00")
@@ -142,9 +143,7 @@ def readParcelliteHistoryFile():
 def readGnomeClipIndicatorFile():
     try:
         cfg = readConfig()
-        histfile = os.path.abspath(
-            os.path.expanduser(cfg["gnomeclipindicator"]["histfile"])
-        )
+        histfile = expandPath(cfg["gnomeclipindicator"]["histfile"])
         with open(histfile, "r") as ifn:
             hist = json.load(ifn)
         lines = [x["contents"] for x in hist if x["contents"].startswith("http")]

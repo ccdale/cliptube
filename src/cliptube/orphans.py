@@ -6,8 +6,9 @@ import ccalogging
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
+from cliptube.files import expandPath
 
-logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
+logfile = expandPath(f"~/log/{__appname__}.log")
 ccalogging.setLogFile(logfile)
 # ccalogging.setDebug()
 ccalogging.setInfo()
@@ -19,7 +20,7 @@ def getSubsPath(cfg):
         xp = cfg["mediaserver"]["incomingdir"]
         if xp.startswith("/"):
             return xp
-        return os.path.abspath(os.path.expanduser(f"~/{xp}"))
+        return expandPath(f"~/{xp}")
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
 
