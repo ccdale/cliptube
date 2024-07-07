@@ -21,12 +21,20 @@ import os
 import re
 
 from cliptube.config import ConfigFileNotFound, readConfig
-from cliptube.files import getOutputFileName, homeDir
+from cliptube.files import expandPath, getOutputFileName, homeDir
+
+
+def test_expandPath():
+    tilde = "~/"
+    home = os.path.abspath(os.path.expanduser(tilde))
+    assert home == expandPath(tilde)
 
 
 def test_homeDir():
     homed = homeDir()
-    assert os.path.abspath(os.path.expanduser("~")) == homed
+    tilde = "~/"
+    assert expandPath(tilde) == homed
+    # assert os.path.abspath(os.path.expanduser("~")) == homed
 
 
 def test_getOutputFileName():
