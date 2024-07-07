@@ -35,19 +35,19 @@ def getOutputFileName(cfg, vtype="v"):
             nextn = 0
         cfg["youtube"]["filenumber"] = str(nextn)
         writeConfig(cfg)
-        if vtype == "v":
-            idir = os.path.abspath(
-                os.path.expanduser(f'~/{cfg["youtube"]["videodir"]}')
-            )
-        elif vtype == "p":
-            idir = os.path.abspath(
-                os.path.expanduser(f'~/{cfg["youtube"]["playlistdir"]}')
-            )
-        elif vtype == "i":
-            idir = os.path.abspath(
-                os.path.expanduser(f'~/{cfg["youtube"]["iplayerdir"]}')
-            )
-        # idir = os.path.abspath(os.path.expanduser(f'~/{cfg["youtube"]["incomingdir"]}'))
+        match vtype:
+            case "v":
+                idir = os.path.abspath(
+                    os.path.expanduser(f'~/{cfg["youtube"]["videodir"]}')
+                )
+            case "p":
+                idir = os.path.abspath(
+                    os.path.expanduser(f'~/{cfg["youtube"]["playlistdir"]}')
+                )
+            case "i":
+                idir = os.path.abspath(
+                    os.path.expanduser(f'~/{cfg["youtube"]["iplayerdir"]}')
+                )
         return f"{idir}/{fnum:0>2}"
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
