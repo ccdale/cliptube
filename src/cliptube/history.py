@@ -6,8 +6,7 @@ from urllib.parse import urlparse, parse_qs
 import ccalogging
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
-from cliptube.config import readConfig
-from cliptube.files import expandPath
+from cliptube.config import expandPath, readConfig
 from cliptube.shell import shellCommand
 
 log = ccalogging.log

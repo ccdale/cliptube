@@ -5,8 +5,7 @@ import sys
 import ccalogging
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
-from cliptube.config import readConfig
-from cliptube.files import expandPath
+from cliptube.config import expandPath, readConfig
 
 logfile = expandPath(f"~/log/{__appname__}.log")
 ccalogging.setLogFile(logfile)

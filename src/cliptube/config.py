@@ -25,11 +25,19 @@ import sys
 
 from cliptube import __appname__
 from cliptube import errorRaise
-from cliptube.files import expandPath
+
+# from cliptube.files import expandPath
 
 
 class ConfigFileNotFound(Exception):
     pass
+
+
+def expandPath(path):
+    try:
+        return os.path.abspath(os.path.expanduser(path))
+    except Exception as e:
+        errorRaise(sys.exc_info()[2], e)
 
 
 def readConfig(overrideappname=None):

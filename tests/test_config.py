@@ -24,6 +24,12 @@ from cliptube import __appname__
 from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
 
 
+def test_expandPath():
+    tilde = "~/"
+    home = os.path.abspath(os.path.expanduser(tilde))
+    assert home == expandPath(tilde)
+
+
 def test_readConfig():
     cfg = readConfig()
     assert cfg["mediaserver"]["user"] == "chris"

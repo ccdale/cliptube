@@ -23,14 +23,7 @@ import sys
 from fabric import Connection
 
 from cliptube import errorNotify
-from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
-
-
-def expandPath(path):
-    try:
-        return os.path.abspath(os.path.expanduser(path))
-    except Exception as e:
-        errorRaise(sys.exc_info()[2], e)
+from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
 
 
 def getOutputFileName(cfg, vtype="v"):

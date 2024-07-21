@@ -23,8 +23,7 @@ from ccalogging import log
 from inotify_simple import INotify, flags
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
-from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
-from cliptube.files import expandPath
+from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
 
 
 def directoryWatches(testing=None):

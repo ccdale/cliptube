@@ -27,8 +27,8 @@ import ccalogging
 from ccalogging import log
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
-from cliptube.config import readConfig
-from cliptube.files import dirFileList, expandPath
+from cliptube.config import expandPath, readConfig
+from cliptube.files import dirFileList
 from cliptube.shell import shellCommand
 
 # log = None
