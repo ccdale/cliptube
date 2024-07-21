@@ -29,7 +29,7 @@ from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeCon
 def directoryWatches(testing=None):
     try:
         # set up logging to stdout as this is a systemd service
-        ccalogging.setConsoleOut(STDOUT=True, cformt="%(message)s")
+        ccalogging.setConsoleOut(STDOUT=True, cformat="%(message)s")
         if testing is not None:
             ccalogging.setDebug()
             log.info(
