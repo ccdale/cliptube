@@ -18,6 +18,8 @@
 #
 
 """test module for the cliptube.config module"""
+import os
+
 import pytest
 
 from cliptube import __appname__
