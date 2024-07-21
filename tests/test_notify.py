@@ -16,4 +16,26 @@
 #     You should have received a copy of the GNU General Public License
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
+import os
+import tempfile
+
+import pytest
+
+from cliptube import __appname__, __version__
 import cliptube.notify as notify
+
+
+def test_directoryWatches(capsys):
+    testdirs = {"videos": "videos", "playlists": "playlists", "iplayer": "iplayer"}
+    with tempfile.TemporaryDirectory() as tmpd:
+        for k, v in testdirs.items():
+            tp = os.path.join(tmpd, v)
+            os.makedirs(tp)
+            testdirs[k] = tp
+        notify.directoryWatches(testdirs)
+    out, err = capsys.readouterr()
+    assert (
+        f"{__appname__} {__version__} directoryWatches starting in testing mode\n"
+        in out
+    )
+    assert f"test directories: {testdirs}\n" in out

@@ -20,5 +20,40 @@ import sys
 
 import ccalogging
 from ccalogging import log
+from inotify_simple import INotify, flags
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
+from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
+from cliptube.files import expandPath
+
+
+def directoryWatches(testing=None):
+    try:
+        # set up logging to stdout as this is a systemd service
+        ccalogging.setConsoleOut(STDOUT=True, cformt="%(message)s")
+        if testing is not None:
+            ccalogging.setDebug()
+            log.info(
+                f"{__appname__} {__version__} directoryWatches starting in testing mode"
+            )
+            log.debug(f"test directories: {testing}")
+            videodir = testing["videos"]
+            playlistdir = testing["playlists"]
+            iplayerdir = testing["iplayer"]
+        else:
+            log.info(f"{__appname__} {__version__} directoryWatches starting")
+            cfg = readConfig()
+            videodir = expandPath(f'~/{cfg["mediaserver"]["videodir"]}')
+            playlistdir = expandPath(f'~/{cfg["mediaserver"]["playlistdir"]}')
+            iplayerdir = expandPath(f'~/{cfg["mediaserver"]["iplayerdir"]}')
+    except Exception as e:
+        errorRaise(sys.exc_info()[2], e)
+
+
+if __name__ == "__main__":
+    try:
+        # debug logging when run as a script
+        ccalogging.setDebug()
+        directoryWatches()
+    except Exception as e:
+        errorExit(sys.exc_info()[2], e)
