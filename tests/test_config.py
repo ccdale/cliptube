@@ -23,7 +23,7 @@ import os
 import pytest
 
 from cliptube import __appname__
-from cliptube.config import ConfigFileNotFound, readConfig, writeConfig
+from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
 
 
 def test_expandPath():
