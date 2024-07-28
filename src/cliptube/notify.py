@@ -16,7 +16,11 @@
 #     You should have received a copy of the GNU General Public License
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
+import os
+import select
+import signal
 import sys
+import threading
 
 import ccalogging
 from ccalogging import log
@@ -24,7 +28,108 @@ from inotify_simple import INotify, flags
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
+import cliptube.shell
 
+
+def interruptNotify(signrcvd, frame):
+    try:
+        global ev
+        signame = signal.Signals(signrcvd).name
+        msg = f"signal {signame} ({signrcvd}) received, shutting down..."
+        log.info(msg)
+        ev.set()
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+# catch sigterm and sigint
+signal.signal(signal.SIGINT, interruptNotify)
+signal.signal(signal.SIGTERM, interruptNotify)
+
+# event to signal the process to stop
+ev = threading.Event()
+ev.clear()
+
+class InotifyThread(threading.Thread):
+    def __init__(self, path):
+        self.__path = path
+
+        # Initialize the parent class
+        threading.Thread.__init__(self)
+
+        # Create an inotify object
+        self.__inotify = INotify()
+
+        # Create a pipe
+        self.__read_fd, write_fd = os.pipe()
+        self.__write = os.fdopen(write_fd, "wb")
+
+    def run(self):
+        """Override this method in your subclass"""
+        # Watch the current directory
+        self.__inotify.add_watch(self.__path, masks.ALL_EVENTS)
+
+        while True:
+            # Wait for inotify events or a write in the pipe
+            rlist, _, _ = select.select(
+                [self.__inotify.fileno(), self.__read_fd], [], []
+            )
+
+            # Print all inotify events
+            if self.__inotify.fileno() in rlist:
+                for event in self.__inotify.read(timeout=0):
+                    flags = [f.name for f in flags.from_mask(event.mask)]
+                    print(f"{event} {flags}")
+
+            # Close everything properly if requested
+            if self.__read_fd in rlist:
+                os.close(self.__read_fd)
+                self.__inotify.close()
+                return
+
+     def stop(self):
+         # Request for stop by writing in the pipe
+         if not self.__write.closed:
+             self.__write.write(b"\x00")
+             self.__write.close()
+
+class DownloadWatcher(InotifyThread):
+    def __init__(self, path):
+        super().__init__(path)
+
+    def run(self):
+        # Watch the current directory, wait for new files to be created and closed
+        self.__inotify.add_watch(self.__path, masks.CLOSE)
+
+        while True:
+            # Wait for inotify events or a write in the pipe
+            rlist, _, _ = select.select(
+                [self.__inotify.fileno(), self.__read_fd], [], []
+            )
+
+            # Print all inotify events
+            if self.__inotify.fileno() in rlist:
+                for event in self.__inotify.read(timeout=0):
+                    flags = [f.name for f in flags.from_mask(event.mask)]
+                    print(f"{event} {flags}")
+                    self.action(event)
+
+            # Close everything properly if requested
+            if self.__read_fd in rlist:
+                os.close(self.__read_fd)
+                self.__inotify.close()
+                return
+
+    def action(self, event):
+        try:
+            fqfn = os.path.join(self.__path, event.name)
+            cmd = ["yt-dlp", "-a", fqfn]
+            sout, serr = shell.shellCommand(cmd)
+            print(f"deleting incoming file {fqfn}")
+            os.unlink(fqfn)
+        except Exception as e:
+            # yt-dlp exited with an error
+            print(f"{cmd} exited with an error: {serr}")
 
 def directoryWatches(testing=None):
     try:
