@@ -94,8 +94,9 @@ class InotifyThread(threading.Thread):
              self.__write.close()
 
 class DownloadWatcher(InotifyThread):
-    def __init__(self, path):
+    def __init__(self, path, cmd=["yt-dlp", "-a", "<fqfn>"]):
         super().__init__(path)
+        self.__cmd = cmd
 
     def run(self):
         # Watch the current directory, wait for new files to be created and closed
@@ -123,8 +124,8 @@ class DownloadWatcher(InotifyThread):
     def action(self, event):
         try:
             fqfn = os.path.join(self.__path, event.name)
-            cmd = ["yt-dlp", "-a", fqfn]
-            sout, serr = shell.shellCommand(cmd)
+            scmd = [x if x != "<fqfn>" else fqfn for x in self.__cmd]
+            sout, serr = shell.shellCommand(scmd)
             print(f"deleting incoming file {fqfn}")
             os.unlink(fqfn)
         except Exception as e:
