@@ -93,7 +93,7 @@ class InotifyThread(threading.Thread):
              self.__write.write(b"\x00")
              self.__write.close()
 
-class DownloadWatcher(InotifyThread):
+class DirectoryWatcher(InotifyThread):
     def __init__(self, path, cmd=["yt-dlp", "-a", "<fqfn>"]):
         super().__init__(path)
         self.__cmd = cmd
@@ -108,7 +108,7 @@ class DownloadWatcher(InotifyThread):
                 [self.__inotify.fileno(), self.__read_fd], [], []
             )
 
-            # Print all inotify events
+            # Print all inotify events and execute the action
             if self.__inotify.fileno() in rlist:
                 for event in self.__inotify.read(timeout=0):
                     flags = [f.name for f in flags.from_mask(event.mask)]
@@ -130,7 +130,7 @@ class DownloadWatcher(InotifyThread):
             os.unlink(fqfn)
         except Exception as e:
             # yt-dlp exited with an error
-            print(f"{cmd} exited with an error: {serr}")
+            print(f"{scmd} exited with an error")
 
 def directoryWatches(testing=None):
     try:

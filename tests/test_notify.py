@@ -39,3 +39,15 @@ def test_directoryWatches(capsys):
         in out
     )
     assert f"test directories: {testdirs}\n" in out
+
+
+def test_DirectoryWatcher(capsys):
+    with tempfile.TemporaryDirectory() as tmpd:
+        dw = notify.DirectoryWatcher(tmpd, cmd="ls")
+        dw.start()
+        with open(os.path.join(tmpd, "testfile"), "w") as f:
+            f.write("test")
+        out, err = capsys.readouterr()
+        dw.stop()
+        out2, err2 = capsys.readouterr()
+        assert "testfile" in out
