@@ -18,6 +18,7 @@
 #
 import os
 import tempfile
+import time
 
 import pytest
 
@@ -43,11 +44,35 @@ def test_directoryWatches(capsys):
 
 def test_DirectoryWatcher(capsys):
     with tempfile.TemporaryDirectory() as tmpd:
-        dw = notify.DirectoryWatcher(tmpd, cmd="ls")
+        xcmd = ["ls", "-l"]
+        dw = notify.DirectoryWatcher(tmpd, cmd=xcmd)
         dw.start()
         with open(os.path.join(tmpd, "testfile"), "w") as f:
             f.write("test")
-        out, err = capsys.readouterr()
+        # captured = capsys.readouterr()
+        # print(f"{captured=}")
+        # allow time for the thread to notice
+        time.sleep(1)
         dw.stop()
-        out2, err2 = capsys.readouterr()
-        assert "testfile" in out
+        captured2 = capsys.readouterr()
+        print(f"{captured2=}")
+        assert "testfile" in captured2.out
+
+
+# this doesn't work as expected as we are not trying to test
+# the main process but the thread, which doesn't appear to be
+# captured.
+# def test_DirectoryWatcher_no_cmd(capsys):
+#     with tempfile.TemporaryDirectory() as tmpd:
+#         with pytest.raises(Exception):
+#             dw = notify.DirectoryWatcher(tmpd)
+#             dw.start()
+#             with open(os.path.join(tmpd, "testfile"), "w") as f:
+#                 f.write("test")
+#             # allow time for the thread to notice
+#             time.sleep(1)
+#             dw.stop()
+#         captured = capsys.readouterr()
+#         assert "CLOSE_WRITE" in captured.out
+#         assert "exited with an error" in captured.err
+#         assert "testfile" in captured.out

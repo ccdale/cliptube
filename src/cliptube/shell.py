@@ -60,4 +60,7 @@ def shellCommand(cmd, canfail=False):
         print(msg)
         errorRaise(sys.exc_info()[2], e)
     except Exception as e:
+        msg = f"ERROR: {ret.stderr}\nstdout: {ret.stdout}"
+        msg += f"\nCommand was:\n' '.join(cmd)"
+        print(msg)
         errorRaise(sys.exc_info()[2], e)

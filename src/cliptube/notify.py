@@ -24,11 +24,11 @@ import threading
 
 import ccalogging
 from ccalogging import log
-from inotify_simple import INotify, flags
+from inotify_simple import INotify, flags, masks
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
-import cliptube.shell
+import cliptube.shell as shell
 
 
 def interruptNotify(signrcvd, frame):
@@ -50,48 +50,48 @@ signal.signal(signal.SIGTERM, interruptNotify)
 ev = threading.Event()
 ev.clear()
 
+
 class InotifyThread(threading.Thread):
     def __init__(self, path):
-        self.__path = path
+        self.xpath = path
 
         # Initialize the parent class
         threading.Thread.__init__(self)
 
         # Create an inotify object
-        self.__inotify = INotify()
+        self.xin = INotify()
 
         # Create a pipe
-        self.__read_fd, write_fd = os.pipe()
+        self.readfd, write_fd = os.pipe()
         self.__write = os.fdopen(write_fd, "wb")
 
     def run(self):
         """Override this method in your subclass"""
         # Watch the current directory
-        self.__inotify.add_watch(self.__path, masks.ALL_EVENTS)
+        self.xin.add_watch(self.xpath, masks.ALL_EVENTS)
 
         while True:
             # Wait for inotify events or a write in the pipe
-            rlist, _, _ = select.select(
-                [self.__inotify.fileno(), self.__read_fd], [], []
-            )
+            rlist, _, _ = select.select([self.xin.fileno(), self.readfd], [], [])
 
             # Print all inotify events
-            if self.__inotify.fileno() in rlist:
-                for event in self.__inotify.read(timeout=0):
-                    flags = [f.name for f in flags.from_mask(event.mask)]
-                    print(f"{event} {flags}")
+            if self.xin.fileno() in rlist:
+                for event in self.xin.read(timeout=0):
+                    xflags = [f.name for f in flags.from_mask(event.mask)]
+                    print(f"{event} {xflags}")
 
             # Close everything properly if requested
-            if self.__read_fd in rlist:
-                os.close(self.__read_fd)
-                self.__inotify.close()
+            if self.readfd in rlist:
+                os.close(self.readfd)
+                self.xin.close()
                 return
 
-     def stop(self):
-         # Request for stop by writing in the pipe
-         if not self.__write.closed:
-             self.__write.write(b"\x00")
-             self.__write.close()
+    def stop(self):
+        # Request for stop by writing in the pipe
+        if not self.__write.closed:
+            self.__write.write(b"\x00")
+            self.__write.close()
+
 
 class DirectoryWatcher(InotifyThread):
     def __init__(self, path, cmd=["yt-dlp", "-a", "<fqfn>"]):
@@ -100,37 +100,41 @@ class DirectoryWatcher(InotifyThread):
 
     def run(self):
         # Watch the current directory, wait for new files to be created and closed
-        self.__inotify.add_watch(self.__path, masks.CLOSE)
+        self.xin.add_watch(self.xpath, masks.CLOSE)
+        # super(InotifyThread, self).xin.add_watch(self.xpath, masks.CLOSE)
 
         while True:
             # Wait for inotify events or a write in the pipe
-            rlist, _, _ = select.select(
-                [self.__inotify.fileno(), self.__read_fd], [], []
-            )
+            rlist, _, _ = select.select([self.xin.fileno(), self.readfd], [], [])
 
             # Print all inotify events and execute the action
-            if self.__inotify.fileno() in rlist:
-                for event in self.__inotify.read(timeout=0):
-                    flags = [f.name for f in flags.from_mask(event.mask)]
-                    print(f"{event} {flags}")
+            if self.xin.fileno() in rlist:
+                for event in self.xin.read(timeout=0):
+                    xflags = [f.name for f in flags.from_mask(event.mask)]
+                    print(f"{event} {xflags}")
                     self.action(event)
 
             # Close everything properly if requested
-            if self.__read_fd in rlist:
-                os.close(self.__read_fd)
-                self.__inotify.close()
+            if self.readfd in rlist:
+                os.close(self.readfd)
+                self.xin.close()
                 return
 
     def action(self, event):
         try:
-            fqfn = os.path.join(self.__path, event.name)
+            fqfn = os.path.join(self.xpath, event.name)
             scmd = [x if x != "<fqfn>" else fqfn for x in self.__cmd]
-            sout, serr = shell.shellCommand(scmd)
-            print(f"deleting incoming file {fqfn}")
-            os.unlink(fqfn)
+            try:
+                sout, serr = shell.shellCommand(scmd)
+                print(f"deleting incoming file {fqfn}")
+                os.unlink(fqfn)
+            except Exception as e:
+                # yt-dlp exited with an error
+                print(f"{scmd} exited with an error {e}")
         except Exception as e:
             # yt-dlp exited with an error
             print(f"{scmd} exited with an error")
+
 
 def directoryWatches(testing=None):
     try:
@@ -157,8 +161,6 @@ def directoryWatches(testing=None):
 
 if __name__ == "__main__":
     try:
-        # debug logging when run as a script
-        ccalogging.setDebug()
-        directoryWatches()
+        directoryWatches(testing=True)
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
