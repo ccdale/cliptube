@@ -155,6 +155,11 @@ def directoryWatches(testing=None):
             videodir = expandPath(f'~/{cfg["mediaserver"]["videodir"]}')
             playlistdir = expandPath(f'~/{cfg["mediaserver"]["playlistdir"]}')
             iplayerdir = expandPath(f'~/{cfg["mediaserver"]["iplayerdir"]}')
+            dvw = DirectoryWatcher(videodir, cmd=["yt-dlp", "-a", "<fqfn>"])
+            dvw.start()
+            while not ev.is_set():
+                ev.wait()
+            dvw.stop()
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 
