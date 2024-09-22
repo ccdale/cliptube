@@ -1,0 +1,9 @@
+[Unit]
+Description=cliptube youtube directory watcher
+
+[Service]
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/ytwatch
+
+[Install]
+WantedBy=default.target

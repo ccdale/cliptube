@@ -122,6 +122,8 @@ class DirectoryWatcher(InotifyThread):
 
     def action(self, event):
         try:
+            if event.name == "":
+                print(f"filename name is empty, skipping")
             fqfn = os.path.join(self.xpath, event.name)
             scmd = [x if x != "<fqfn>" else fqfn for x in self.__cmd]
             try:

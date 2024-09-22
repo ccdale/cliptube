@@ -42,11 +42,8 @@ def expandPath(path):
 
 def readConfig(overrideappname=None):
     try:
-        absfn = (
-            expandPath(f"~/.config/{__appname__}.cfg")
-            if overrideappname is None
-            else expandPath(f"~/.config/{overrideappname}.cfg")
-        )
+        appname = __appname__ if overrideappname is None else overrideappname
+        absfn = expandPath(f"~/.config/{appname}.cfg")
         cfgpath = Path(absfn)
         if not cfgpath.exists():
             raise ConfigFileNotFound(f"cannot find config file: {cfgpath}")
