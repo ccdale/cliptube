@@ -2,7 +2,7 @@ import sys
 
 import ccalogging
 
-__version__ = "1.0.3"
+__version__ = "1.0.5"
 __appname__ = "cliptube"
 
 log = ccalogging.log

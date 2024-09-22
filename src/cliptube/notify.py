@@ -99,8 +99,9 @@ class DirectoryWatcher(InotifyThread):
         self.__cmd = cmd
 
     def run(self):
-        # Watch the current directory, wait for new files to be created and closed
-        self.xin.add_watch(self.xpath, masks.CLOSE)
+        # Watch the current directory,
+        # wait for new files to be created, written to and closed
+        self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
         # super(InotifyThread, self).xin.add_watch(self.xpath, masks.CLOSE)
 
         while True:
