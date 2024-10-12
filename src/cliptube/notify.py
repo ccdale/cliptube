@@ -125,8 +125,9 @@ class DirectoryWatcher(InotifyThread):
     def action(self, event):
         try:
             # pause the current inotify thread
+            print("pausing inotify")
             self.xin.rm_watch(self.xin.fileno())
-            files = dirFileList(self.xpath)
+            files = dirFileList(self.xpath, filterext=[".err"])
             # need to weed out '.err' files
             while files is not None and len(files) > 0:
                 # loop through each file found
@@ -143,25 +144,14 @@ class DirectoryWatcher(InotifyThread):
                         print(f"{scmd} exited with an error {e}")
                         os.rename(fqfn, f"{fqfn}.err")
                 # have another look to see if there are more files
-                files = dirFileList(self.xpath)
+                files = dirFileList(self.xpath, filterext=[".err"])
 
-            if event.name == "":
-                print(f"filename name is empty, skipping")
-                return
-            fqfn = os.path.join(self.xpath, event.name)
-            scmd = [x if x != "<fqfn>" else fqfn for x in self.__cmd]
-            try:
-                sout, serr = shell.shellCommand(scmd)
-                print(f"deleting incoming file {fqfn}")
-                os.unlink(fqfn)
-            except Exception as e:
-                # yt-dlp exited with an error
-                print(f"{scmd} exited with an error {e}")
         except Exception as e:
-            # yt-dlp exited with an error
-            print(f"{scmd} exited with an error")
+            # unknown error
+            print(f"error: {e}")
         finally:
             # restart the inotify thread
+            print("restarting inotify")
             self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
 
 
