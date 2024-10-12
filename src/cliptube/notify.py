@@ -135,12 +135,28 @@ class DirectoryWatcher(InotifyThread):
                 # pass the fqfn to the command
                 for fn in files:
                     fqfn = os.path.join(self.xpath, fn)
+                    print(f"found incoming file {fqfn}")
                     if self.readfiles:
+                        print(f"processing file contents of {fqfn}")
                         if not self.doFileContents(fqfn):
                             os.rename(fqfn, f"{fqfn}.err")
                         else:
                             print(f"deleting incoming file {fqfn}")
                             os.unlink(fqfn)
+                    else:
+                        print(f"processing file {fqfn}")
+                        scmd = [x if x != "<fqfn>" else fqfn for x in self.__cmd]
+                        try:
+                            print(f"shellCommand: {scmd=}")
+                            sout, serr = shell.shellCommand(scmd)
+                            print(f"{sout=}")
+                            print(f"{serr=}")
+                            print(f"deleting incoming file {fqfn}")
+                            os.unlink(fqfn)
+                        except Exception as e:
+                            # cmd exited with an error
+                            print(f"{scmd} exited with an error {e}")
+                            os.rename(fqfn, f"{fqfn}.err")
                 # have another look to see if there are more files
                 files = dirFileList(self.xpath, filterext=[".err"])
         except Exception as e:
@@ -160,9 +176,13 @@ class DirectoryWatcher(InotifyThread):
     def doFileContents(self, fqfn):
         urls = self.readFile(fqfn)
         for url in urls:
+            print(f"processing url {url}")
             scmd = [x if x != "<fqfn>" else url for x in self.__cmd]
             try:
+                print(f"shellCommand: {scmd=}")
                 sout, serr = shell.shellCommand(scmd)
+                print(f"{sout=}")
+                print(f"{serr=}")
             except Exception as e:
                 # cmd exited with an error
                 print(f"{scmd} exited with an error {e}")
@@ -191,7 +211,9 @@ def directoryWatches(testing=None):
             iplayerdir = expandPath(f'~/{cfg["mediaserver"]["iplayerdir"]}')
             dvw = DirectoryWatcher(videodir, cmd=["yt-dlp", "-a", "<fqfn>"])
             dvw.start()
-            dpw = DirectoryWatcher(iplayerdir, cmd=["get_iplayer", "--url", "<fqfn>"])
+            dpw = DirectoryWatcher(
+                iplayerdir, cmd=["get_iplayer", "--url", "<fqfn>"], readfiles=True
+            )
             dpw.start()
             while not ev.is_set():
                 ev.wait()
