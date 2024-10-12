@@ -161,7 +161,8 @@ class DirectoryWatcher(InotifyThread):
                 files = dirFileList(self.xpath, filterext=[".err"])
         except Exception as e:
             # unknown error
-            print(f"error: {e}")
+            errorNotify(sys.exc_info()[2], e)
+            ## print(f"error: {e}")
         finally:
             # restart the inotify thread
             print("restarting inotify")
