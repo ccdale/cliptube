@@ -99,11 +99,12 @@ class DirectoryWatcher(InotifyThread):
         super().__init__(path)
         self.__cmd = cmd
         self.readfiles = readfiles
+        self.watchdesc = None
 
     def run(self):
         # Watch the current directory,
         # wait for new files to be created, written to and closed
-        self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
+        self.watchdesc = self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
         # super(InotifyThread, self).xin.add_watch(self.xpath, masks.CLOSE)
 
         while True:
@@ -127,7 +128,7 @@ class DirectoryWatcher(InotifyThread):
         try:
             # pause the current inotify thread
             print("pausing inotify")
-            self.xin.rm_watch(self.xin.fileno())
+            self.xin.rm_watch(self.watchdesc)
             files = dirFileList(self.xpath, filterext=[".err"])
             # need to weed out '.err' files
             while files is not None and len(files) > 0:
@@ -166,7 +167,7 @@ class DirectoryWatcher(InotifyThread):
         finally:
             # restart the inotify thread
             print("restarting inotify")
-            self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
+            self.watchdesc = self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
 
     def readFile(self, fqfn):
         with open(fqfn, "r") as ifn:
