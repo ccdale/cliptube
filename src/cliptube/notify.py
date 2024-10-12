@@ -193,9 +193,11 @@ def directoryWatches(testing=None):
             dvw = DirectoryWatcher(videodir, cmd=["yt-dlp", "-a", "<fqfn>"])
             dvw.start()
             dpw = DirectoryWatcher(iplayerdir, cmd=["get_iplayer", "--url", "<fqfn>"])
+            dpw.start()
             while not ev.is_set():
                 ev.wait()
             dvw.stop()
+            dpw.stop()
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 
