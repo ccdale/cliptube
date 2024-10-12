@@ -71,8 +71,12 @@ def homeDir():
 def dirFileList(path, filterext=None):
     try:
         if os.path.isdir(path):
-            tfn [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
-            fns = [f for f in tfn if not f.endswith(filterext)] if filterext is not None else tfn
+            tfn = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
+            fns = (
+                [f for f in tfn if not f.endswith(filterext)]
+                if filterext is not None
+                else tfn
+            )
             return fns
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
