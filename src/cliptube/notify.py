@@ -189,7 +189,6 @@ def directoryWatches(testing=None):
             videodir = expandPath(f'~/{cfg["mediaserver"]["videodir"]}')
             playlistdir = expandPath(f'~/{cfg["mediaserver"]["playlistdir"]}')
             iplayerdir = expandPath(f'~/{cfg["mediaserver"]["iplayerdir"]}')
-            iplayerop = expandPath(f'~/{cfg["mediaserver"]["iplayerop"]}')
             dvw = DirectoryWatcher(videodir, cmd=["yt-dlp", "-a", "<fqfn>"])
             dvw.start()
             dpw = DirectoryWatcher(iplayerdir, cmd=["get_iplayer", "--url", "<fqfn>"])
