@@ -95,9 +95,10 @@ class InotifyThread(threading.Thread):
 
 
 class DirectoryWatcher(InotifyThread):
-    def __init__(self, path, cmd=["yt-dlp", "-a", "<fqfn>"]):
+    def __init__(self, path, cmd=["yt-dlp", "-a", "<fqfn>"], readfiles=False):
         super().__init__(path)
         self.__cmd = cmd
+        self.readfiles = readfiles
 
     def run(self):
         # Watch the current directory,
@@ -134,18 +135,14 @@ class DirectoryWatcher(InotifyThread):
                 # pass the fqfn to the command
                 for fn in files:
                     fqfn = os.path.join(self.xpath, fn)
-                    scmd = [x if x != "<fqfn>" else fqfn for x in self.__cmd]
-                    try:
-                        sout, serr = shell.shellCommand(scmd)
-                        print(f"deleting incoming file {fqfn}")
-                        os.unlink(fqfn)
-                    except Exception as e:
-                        # yt-dlp exited with an error
-                        print(f"{scmd} exited with an error {e}")
-                        os.rename(fqfn, f"{fqfn}.err")
+                    if self.readfiles:
+                        if not self.doFileContents(fqfn):
+                            os.rename(fqfn, f"{fqfn}.err")
+                        else:
+                            print(f"deleting incoming file {fqfn}")
+                            os.unlink(fqfn)
                 # have another look to see if there are more files
                 files = dirFileList(self.xpath, filterext=[".err"])
-
         except Exception as e:
             # unknown error
             print(f"error: {e}")
@@ -153,6 +150,24 @@ class DirectoryWatcher(InotifyThread):
             # restart the inotify thread
             print("restarting inotify")
             self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
+
+    def readFile(self, fqfn):
+        with open(fqfn, "r") as ifn:
+            lines = ifn.readlines()
+            urls = [x.strip() for x in lines]
+        return urls
+
+    def doFileContents(self, fqfn):
+        urls = self.readFile(fqfn)
+        for url in urls:
+            scmd = [x if x != "<fqfn>" else url for x in self.__cmd]
+            try:
+                sout, serr = shell.shellCommand(scmd)
+            except Exception as e:
+                # cmd exited with an error
+                print(f"{scmd} exited with an error {e}")
+                return False
+        return True
 
 
 def directoryWatches(testing=None):
@@ -177,6 +192,7 @@ def directoryWatches(testing=None):
             iplayerop = expandPath(f'~/{cfg["mediaserver"]["iplayerop"]}')
             dvw = DirectoryWatcher(videodir, cmd=["yt-dlp", "-a", "<fqfn>"])
             dvw.start()
+            dpw = DirectoryWatcher(iplayerdir, cmd=["get_iplayer", "--url", "<fqfn>"])
             while not ev.is_set():
                 ev.wait()
             dvw.stop()
