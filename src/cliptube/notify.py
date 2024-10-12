@@ -28,6 +28,7 @@ from inotify_simple import INotify, flags, masks
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
+from cliptube.files import dirFileList
 import cliptube.shell as shell
 
 
@@ -123,6 +124,27 @@ class DirectoryWatcher(InotifyThread):
 
     def action(self, event):
         try:
+            # pause the current inotify thread
+            self.xin.rm_watch(self.xin.fileno())
+            files = dirFileList(self.xpath)
+            # need to weed out '.err' files
+            while files is not None and len(files) > 0:
+                # loop through each file found
+                # pass the fqfn to the command
+                for fn in files:
+                    fqfn = os.path.join(self.xpath, fn)
+                    scmd = [x if x != "<fqfn>" else fqfn for x in self.__cmd]
+                    try:
+                        sout, serr = shell.shellCommand(scmd)
+                        print(f"deleting incoming file {fqfn}")
+                        os.unlink(fqfn)
+                    except Exception as e:
+                        # yt-dlp exited with an error
+                        print(f"{scmd} exited with an error {e}")
+                        os.rename(fqfn, f"{fqfn}.err")
+                # have another look to see if there are more files
+                files = dirFileList(self.xpath)
+
             if event.name == "":
                 print(f"filename name is empty, skipping")
                 return
@@ -138,6 +160,9 @@ class DirectoryWatcher(InotifyThread):
         except Exception as e:
             # yt-dlp exited with an error
             print(f"{scmd} exited with an error")
+        finally:
+            # restart the inotify thread
+            self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
 
 
 def directoryWatches(testing=None):
@@ -159,6 +184,7 @@ def directoryWatches(testing=None):
             videodir = expandPath(f'~/{cfg["mediaserver"]["videodir"]}')
             playlistdir = expandPath(f'~/{cfg["mediaserver"]["playlistdir"]}')
             iplayerdir = expandPath(f'~/{cfg["mediaserver"]["iplayerdir"]}')
+            iplayerop = expandPath(f'~/{cfg["mediaserver"]["iplayerop"]}')
             dvw = DirectoryWatcher(videodir, cmd=["yt-dlp", "-a", "<fqfn>"])
             dvw.start()
             while not ev.is_set():
