@@ -16,10 +16,11 @@
 #     You should have received a copy of the GNU General Public License
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import os
+import tempfile
 
 from cliptube.config import ConfigFileNotFound, expandPath, readConfig
-from cliptube.files import getOutputFileName, homeDir
+from cliptube.files import dirFileList, getOutputFileName, homeDir
 
 
 def test_homeDir():
@@ -37,3 +38,24 @@ def test_getOutputFileName():
     assert ofn.startswith(f"{homed}/.cliptube/playlists")
     ofn = getOutputFileName(cfg, vtype="i")
     assert ofn.startswith(f"{homed}/.cliptube/iplayer")
+
+
+def test_dirFileList():
+    with tempfile.TemporaryDirectory() as tmpd:
+        # path = expandPath("~/.testme")
+        # os.mkdir(path)
+        with open("/".join([tmpd, "testfile"]), "w") as f:
+            f.write("test")
+        with open("/".join([tmpd, "test.err"]), "w") as f:
+            f.write("test")
+        fns = dirFileList(tmpd)
+        assert len(fns) == 2
+        assert "testfile" in fns
+        assert "test.err" in fns
+        fns = dirFileList(tmpd, filterext="err")
+        assert len(fns) == 1
+        assert "test.err" not in fns
+        assert "testfile" in fns
+        # os.remove("/".join([path, "testfile"]))
+        # os.remove("/".join([path, "test.err"]))
+        # os.rmdir(path)

@@ -1,0 +1,18 @@
+# save this as ~/.config/yt-dlp/config
+#
+# Save all videos under /home/$USER/youtube directory
+-o ~/youtube/subs/%(title)s.%(ext)s
+# subtitles
+# --write-sub --write-auto-sub --sub-lang "en.*"
+--embed-subs
+--sub-lang "en.*"
+
+--sponsorblock-mark all
+
+# bestaudio, video no better than 720
+-f 'bestvideo[height<=720]+bestaudio/best[height<=720]'
+
+--cookies-from-browser firefox
+--mark-watched
+--restrict-filenames
+

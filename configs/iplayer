@@ -1,0 +1,7 @@
+# save this as ~/.get_iplayer/options
+# strip these comments
+#
+whitespace 1
+output /home/chris/seagate4/iplayer/
+fileprefix <nameshort><.senum><.episodeshort>
+subtitles 1
