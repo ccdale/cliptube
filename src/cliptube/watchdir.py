@@ -59,7 +59,7 @@ def getVideos(path):
             scmd = ["get_iplayer", "--url"]
         else:
             scmd = ["yt-dlp"]
-        files = dirFileList(path)
+        files = dirFileList(path, filterext=".err")
         if files is not None:
             for fn in files:
                 fqfn = os.path.join(path, fn)
