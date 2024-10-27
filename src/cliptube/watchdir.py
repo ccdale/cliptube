@@ -41,7 +41,7 @@ def interruptWD(signrcvd, frame):
     try:
         global ev
         msg = "Keyboard interrupt received in watchdir module - exiting."
-        log.info(msg)
+        print(msg)
         ev.set()
         # sys.exit(255)
     except Exception as e:
@@ -63,24 +63,24 @@ def getVideos(path):
         if files is not None:
             for fn in files:
                 fqfn = os.path.join(path, fn)
-                log.debug(f"found incoming file {fqfn}")
+                print(f"found incoming file {fqfn}")
                 with open(fqfn, "r") as ifn:
                     tlines = ifn.readlines()
                 lines = [x.strip() for x in tlines]
-                log.debug(f"read {len(lines)} url(s) from {fqfn}")
-                log.debug(f"{lines=}")
+                # log.debug(f"read {len(lines)} url(s) from {fqfn}")
+                # log.debug(f"{lines=}")
                 for lin in lines:
                     try:
                         cmd = scmd.copy()
                         cmd.append(lin)
-                        log.info(f"shellCommand: {cmd=}")
+                        print(f"shellCommand: {cmd=}")
                         cout, cerr = shellCommand(cmd)
-                        log.debug(f"{cout=}")
-                        log.debug(f"{cerr=}")
-                        log.info(f"deleting incoming file {fqfn}")
+                        # print(f"{cout=}")
+                        # print(f"{cerr=}")
+                        print(f"deleting incoming file {fqfn}")
                         os.unlink(fqfn)
                     except Exception as e:
-                        log.error(f"shellCommand {cmd} exited with an error {e}")
+                        print(f"shellCommand {cmd} exited with an error {e}")
                         os.move(fqfn, f"{fqfn}.err")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
@@ -88,25 +88,25 @@ def getVideos(path):
 
 def watchDir(path, sleeptime=60):
     try:
-        log.debug(f"watch dir {__version__} starting to watch {path}")
+        # log.debug(f"watch dir {__version__} starting to watch {path}")
         while not ev.is_set():
             getVideos(path)
             ev.wait(sleeptime)
-        log.debug("watch dir completed")
+        # log.debug("watch dir completed")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
 
 def watchDirectories(paths, sleeptime=60):
     try:
-        log.debug(f"watch directories {__version__} starting to watch {paths}")
+        print(f"watch directories {__version__} starting to watch {paths}")
         if isinstance(paths, str):
             paths = [paths]
         while not ev.is_set():
             for path in paths:
                 getVideos(path)
             ev.wait(sleeptime)
-        log.debug("watch directories completed")
+        print("watch directories completed")
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 
@@ -123,15 +123,15 @@ def getWatchPath(cfg):
 
 def dirWatch():
     try:
-        log.info(f"starting {__appname__} {__version__} directoriesWatch")
+        print(f"starting {__appname__} {__version__} directoriesWatch")
         cfg = readConfig()
         paths = []
         paths.append(expandPath(f'~/{cfg["mediaserver"]["videodir"]}'))
         paths.append(expandPath(f'~/{cfg["mediaserver"]["playlistdir"]}'))
         paths.append(expandPath(f'~/{cfg["mediaserver"]["iplayerdir"]}'))
-        log.info(f"directoriesWatch will watch {paths}")
+        print(f"directoriesWatch will watch {paths}")
         watchDirectories(paths)
-        log.info("directoriesWatch completed")
+        print("directoriesWatch completed")
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
 
@@ -145,7 +145,7 @@ def daemonDirWatch():
             # ccalogging.setDebug()
             ccalogging.setInfo()
             log = ccalogging.log
-            log.debug(f"{__appname__}-watchdir deamonised!")
+            # log.debug(f"{__appname__}-watchdir deamonised!")
             dirWatch()
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
