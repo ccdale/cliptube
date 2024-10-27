@@ -81,7 +81,7 @@ def getVideos(path):
                         os.unlink(fqfn)
                     except Exception as e:
                         print(f"shellCommand {cmd} exited with an error {e}")
-                        os.move(fqfn, f"{fqfn}.err")
+                        os.rename(fqfn, f"{fqfn}.err")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
