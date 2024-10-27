@@ -3,12 +3,14 @@
 # exit on ANY error
 set -e
 
-# detect whether this is OSX
-if $(which -s gsed); then
-    SED=$(which gsed)
-else
-    SED=$(which sed)
-fi
+platform=$(uname -s)
+
+case $platform in
+    Linux*)     SED=$(which sed);;
+    Darwin*)    SED=$(which gsed);;
+    *)          echo "Unsupported platform: $platform"; exit 1;;
+esac
+
 
 # attempt to keep the version variable in sync in the 3 places that it is stored
 
