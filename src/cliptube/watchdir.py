@@ -22,9 +22,9 @@ import sys
 from threading import Event
 import time
 
-import daemon
-import ccalogging
-from ccalogging import log
+# import daemon
+# import ccalogging
+# from ccalogging import log
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import expandPath, readConfig
@@ -141,10 +141,10 @@ def daemonDirWatch():
         # global log
         with daemon.DaemonContext():
             logfile = expandPath(f"~/log/{__appname__}-watchdir.log")
-            ccalogging.setLogFile(logfile)
+            # ccalogging.setLogFile(logfile)
             # ccalogging.setDebug()
-            ccalogging.setInfo()
-            log = ccalogging.log
+            # ccalogging.setInfo()
+            # log = ccalogging.log
             # log.debug(f"{__appname__}-watchdir deamonised!")
             dirWatch()
     except Exception as e:
