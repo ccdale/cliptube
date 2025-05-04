@@ -3,7 +3,7 @@ Description=cliptube youtube directory watcher
 
 [Service]
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/$USER/.local/bin/dirwatch
+ExecStart=/home/chris/.local/bin/dirwatch
 
 [Install]
 WantedBy=default.target

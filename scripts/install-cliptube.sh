@@ -7,11 +7,8 @@ if [ $UID -eq 0 ]; then
     exit 1
 fi
 
-HERE=$(basename $0)
-DATADIR=$HERE/../configs
-
-# goto the users home directory
-cd
+ROOT=$(git rev-parse --show-toplevel)
+DATADIR=$ROOT/configs
 
 CONFFN=$HOME/.config/cliptube.cfg
 
@@ -25,11 +22,11 @@ SRVDIR=$HOME/.config/systemd/user
 mkdir -p $SRVDIR
 
 # copy the config
-cp configs/cliptube.service $SRVDIR/
+cp $DATADIR/cliptube.service $SRVDIR/
 
 # setup to start on user login
 systemctl --user enable cliptube.service
 
 # run now
-systemctl --user start dirwatch.service
+systemctl --user start cliptube.service
 

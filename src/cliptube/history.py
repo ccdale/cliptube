@@ -68,10 +68,10 @@ def getNewUrls():
         # ccalogging.setDebug()
         xlist = readList()
         log.debug(f"{xlist=}")
-        # hlist = readParcelliteHistoryFile()
+        hlist = readParcelliteHistoryFile()
         # hlist = readParcelliteHistory()
         # hlist = readCopyQHistory()
-        hlist = readGnomeClipIndicatorFile()
+        # hlist = readGnomeClipIndicatorFile()
         log.debug(f"{hlist=}")
         nlist = [x for x in hlist if x not in xlist]
         log.debug(f"{nlist=}")

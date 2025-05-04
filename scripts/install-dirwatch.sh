@@ -7,11 +7,8 @@ if [ $UID -eq 0 ]; then
     exit 1
 fi
 
-HERE=$(basename $0)
-DATADIR=$HERE/../configs
-
-# goto the users home directory
-cd
+ROOT=$(git rev-parse --show-toplevel)
+DATADIR=$ROOT/configs
 
 CONFFN=$HOME/.config/cliptube.cfg
 
