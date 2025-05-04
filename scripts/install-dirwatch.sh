@@ -7,8 +7,17 @@ if [ $UID -eq 0 ]; then
     exit 1
 fi
 
+HERE=$(basename $0)
+DATADIR=$HERE/../configs
+
 # goto the users home directory
 cd
+
+CONFFN=$HOME/.config/cliptube.cfg
+
+if [ ! -r $CONFFN ]; then
+    cp $DATADIR/cliptube.cfg $CONFFN
+fi
 
 SRVDIR=$HOME/.config/systemd/user
 
@@ -16,7 +25,7 @@ SRVDIR=$HOME/.config/systemd/user
 mkdir -p $SRVDIR
 
 # copy the config
-cp configs/dirwatch.service $SRVDIR/
+cp $DATADIR/dirwatch.service $SRVDIR/
 
 # setup to start on user login
 systemctl --user enable dirwatch.service
