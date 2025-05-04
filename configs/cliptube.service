@@ -6,4 +6,4 @@ WantedBy=default.target
 
 [Service]
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/usr/bin/cliptube
+ExecStart=/home/$USER/.local/bin/cliptube
