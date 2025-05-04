@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cliptube"
-version = "1.4.4"
+version = "1.4.8"
 description = "tool to download youtube videos from the clipboard."
 authors = ["ccdale <chris.charles.allison+cliptube@gmail.com>"]
 readme = "README.md"
@@ -18,7 +18,8 @@ pytest = "*"
 
 [tool.poetry.scripts]
 orphans = "cliptube.orphans:findOrphans"
-gcbwatch = "cliptube.wclipboard:watchGnomeClipboard"
+# gcbwatch = "cliptube.wclipboard:watchGnomeClipboard"
+cliptube = "cliptube.wclipboard:watchparcellite"
 dirwatch = "cliptube.watchdir:dirWatch"
 
 [build-system]

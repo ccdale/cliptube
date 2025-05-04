@@ -1,0 +1,9 @@
+[Unit]
+Description=Clipboard watcher
+
+[Install]
+WantedBy=default.target
+
+[Service]
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/cliptube
