@@ -34,7 +34,7 @@ class TheException(Exception):
 
 
 def test_cliptube_version():
-    assert __version__ == "1.4.26"
+    assert __version__ == "1.4.27"
 
 
 def test_errorNotify(caplog):
