@@ -68,10 +68,10 @@ def getNewUrls():
         # ccalogging.setDebug()
         xlist = readList()
         log.debug(f"{xlist=}")
-        hlist = readParcelliteHistoryFile()
+        # hlist = readParcelliteHistoryFile()
         # hlist = readParcelliteHistory()
         # hlist = readCopyQHistory()
-        # hlist = readGnomeClipIndicatorFile()
+        hlist = readGnomeClipIndicatorFile()
         log.debug(f"{hlist=}")
         nlist = [x for x in hlist if x not in xlist]
         log.debug(f"{nlist=}")
@@ -124,9 +124,12 @@ def readParcelliteHistoryFile():
         cfg = readConfig()
         histfile = expandPath(cfg["parcellite"]["histfile"])
         with open(histfile, "r") as ifn:
-            hist = ifn.readlines()
-        lines = hist[0].split("\x00")
+            # hist = ifn.readlines()
+            hist = ifn.read()
+        # lines = hist[0].split("\x00")
+        lines = hist.split("\x00")
         log.debug(f"{len(lines)} lines in parcellite history file")
+        print(f"{len(lines)} lines in parcellite history file")
         urls = []
         for line in lines:
             if line.startswith("http"):
@@ -134,6 +137,7 @@ def readParcelliteHistoryFile():
                 if url is not None:
                     urls.append(url)
         log.debug(f"{len(urls)} urls found in parcellite history file")
+        print(f"{len(urls)} urls found in parcellite history file")
         return urls
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
@@ -154,3 +158,8 @@ def readGnomeClipIndicatorFile():
         return urls
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
+
+
+if __name__ == "__main__":
+    urls = readParcelliteHistory()
+    print(f"{urls=}")
