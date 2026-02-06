@@ -1,10 +1,9 @@
 import os
-from signal import signal, SIGINT
 import sys
-from threading import Event, Thread
-import time
+from signal import SIGINT, signal
+from threading import Event
 
-import ccalogging
+import ccalogging  # type: ignore
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import readConfig
@@ -176,7 +175,7 @@ def oneOnly(pidfn):
     try:
         if os.path.exists(pidfn):
             ipid = checkPid(pidfn)
-            if ipid != False:
+            if not ipid:
                 raise onlyOne(f"{__appname__} is already running with pid {ipid}")
         with open(pidfn, "w") as ofn:
             log.info("Writing pid file")

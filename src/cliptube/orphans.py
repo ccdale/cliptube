@@ -2,9 +2,9 @@ import mimetypes
 import os
 import sys
 
-import ccalogging
+import ccalogging  # type: ignore
 
-from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
+from cliptube import __appname__, __version__, errorExit, errorNotify
 from cliptube.config import expandPath, readConfig
 
 logfile = expandPath(f"~/log/{__appname__}.log")

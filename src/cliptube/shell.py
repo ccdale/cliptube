@@ -18,8 +18,8 @@
 #
 
 """subprocess commands to send via a shell."""
-import sys
 import subprocess
+import sys
 from subprocess import CalledProcessError
 
 from cliptube import errorRaise
@@ -28,8 +28,8 @@ from cliptube import errorRaise
 def listCmd(cmd):
     """ensures the passed in command is a list not a string."""
     try:
-        if type(cmd) != list:
-            if type(cmd) != str:
+        if type(cmd) is not list:
+            if type(cmd) is not str:
                 raise Exception(
                     f"cmd should be list or string, you gave {type(cmd)} {cmd}"
                 )
@@ -56,11 +56,11 @@ def shellCommand(cmd, canfail=False):
         return (ret.stdout, ret.stderr)
     except CalledProcessError as e:
         msg = f"ERROR: {ret.stderr}\nstdout: {ret.stdout}"
-        msg += f"\nCommand was:\n' '.join(cmd)"
+        msg += f"\nCommand was:\n{' '.join(cmd)}"
         print(msg)
         errorRaise(sys.exc_info()[2], e)
     except Exception as e:
         msg = f"ERROR: {ret.stderr}\nstdout: {ret.stdout}"
-        msg += f"\nCommand was:\n' '.join(cmd)"
+        msg += f"\nCommand was:\n{' '.join(cmd)}"
         print(msg)
         errorRaise(sys.exc_info()[2], e)

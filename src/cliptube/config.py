@@ -20,11 +20,10 @@
 """config module for cliptube application."""
 import configparser
 import os
-from pathlib import Path
 import sys
+from pathlib import Path
 
-from cliptube import __appname__
-from cliptube import errorRaise
+from cliptube import __appname__, errorRaise
 
 # from cliptube.files import expandPath
 
@@ -60,4 +59,4 @@ def writeConfig(cfg):
         with open(absfn, "w") as ofn:
             cfg.write(ofn)
     except Exception as e:
-        errorNotify(sys.exc_info()[2], e)
+        errorRaise(sys.exc_info()[2], e)
