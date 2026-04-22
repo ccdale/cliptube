@@ -1,11 +1,11 @@
 import json
 import os
 import sys
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 import ccalogging
 
-from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
+from cliptube import __appname__, errorNotify
 from cliptube.config import expandPath, readConfig
 from cliptube.shell import shellCommand
 
@@ -161,5 +161,6 @@ def readGnomeClipIndicatorFile():
 
 
 if __name__ == "__main__":
-    urls = readParcelliteHistory()
+    # urls = readParcelliteHistory()
+    urls = readGnomeClipIndicatorFile()
     print(f"{urls=}")
