@@ -68,7 +68,7 @@ class ProcessingTask:
 class URLProcessorWorker(threading.Thread):
     """Background worker thread that processes URLs from a queue."""
 
-    def __init__(self, task_queue):
+    def __init__(self, task_queue, on_task_finished=None):
         """
         Initialize the worker thread.
 
@@ -77,6 +77,7 @@ class URLProcessorWorker(threading.Thread):
         """
         super().__init__(daemon=True)
         self.task_queue = task_queue
+        self.on_task_finished = on_task_finished
         self.running = True
 
     def run(self):
@@ -130,6 +131,8 @@ class URLProcessorWorker(threading.Thread):
             errorNotify(sys.exc_info()[2], e)
         finally:
             self.task_queue.task_done()
+            if self.on_task_finished is not None:
+                self.on_task_finished()
 
     def stop(self):
         """Signal the worker to stop."""
@@ -152,6 +155,8 @@ class LocalQueueProcessor:
         """
         self.task_queue = Queue()
         self.cache_path = get_cache_path()
+        self._queue_length_lock = threading.Lock()
+        self._reported_empty_queue = False
         self.workers = []
 
         # Restore from cache if available and requested
@@ -159,10 +164,24 @@ class LocalQueueProcessor:
             self._load_from_cache()
 
         for _ in range(num_workers):
-            worker = URLProcessorWorker(self.task_queue)
+            worker = URLProcessorWorker(
+                self.task_queue, on_task_finished=self._log_queue_length
+            )
             worker.start()
             self.workers.append(worker)
         log.debug(f"Started {num_workers} URL processor worker(s)")
+
+    def _log_queue_length(self):
+        """Log pending queue length after a task finishes without spamming empty state."""
+        queue_length = self.task_queue.qsize()
+        with self._queue_length_lock:
+            if queue_length == 0:
+                if self._reported_empty_queue:
+                    return
+                self._reported_empty_queue = True
+            else:
+                self._reported_empty_queue = False
+            log.info(f"Queue length: {queue_length}")
 
     def _load_from_cache(self):
         """Load pending tasks from cache if it exists."""
@@ -214,6 +233,9 @@ class LocalQueueProcessor:
             urls: List of URL strings
             vtype: Type of content ('v', 'p', or 'i')
         """
+        if urls:
+            with self._queue_length_lock:
+                self._reported_empty_queue = False
         for url in urls:
             task = ProcessingTask(url, vtype=vtype)
             self.task_queue.put(task)

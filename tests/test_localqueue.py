@@ -169,6 +169,43 @@ def test_processing_task_different_vtypes():
     processor.shutdown(timeout=2)
 
 
+def test_queue_length_logs_empty_once_per_drain_cycle():
+    """Test queue length logging suppresses repeated empty queue messages."""
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
+
+    with (
+        patch("cliptube.localqueue.shellCommand") as mock_cmd,
+        patch("cliptube.localqueue.log.info") as mock_log_info,
+    ):
+        mock_cmd.return_value = ("", "")
+
+        processor.queue_urls(
+            ["https://example.com/video1", "https://example.com/video2"], vtype="v"
+        )
+        processor.task_queue.join()
+
+        queue_logs = [
+            call.args[0]
+            for call in mock_log_info.call_args_list
+            if call.args and call.args[0].startswith("Queue length:")
+        ]
+        assert queue_logs == ["Queue length: 1", "Queue length: 0"]
+
+        mock_log_info.reset_mock()
+
+        processor.queue_urls(["https://example.com/video3"], vtype="v")
+        processor.task_queue.join()
+
+        queue_logs = [
+            call.args[0]
+            for call in mock_log_info.call_args_list
+            if call.args and call.args[0].startswith("Queue length:")
+        ]
+        assert queue_logs == ["Queue length: 0"]
+
+    processor.shutdown(timeout=2)
+
+
 def test_cache_save_and_load(monkeypatch, tmp_path):
     """Test saving pending tasks to cache and loading them on startup."""
     # Mock the cache path to use a temp directory
