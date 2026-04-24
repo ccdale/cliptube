@@ -27,8 +27,7 @@ from pathlib import Path
 from queue import Queue
 
 from cliptube import errorNotify, log
-from cliptube.config import expandPath, readConfig
-from cliptube.files import getOutputFileName
+from cliptube.config import expandPath
 from cliptube.shell import shellCommand
 
 
@@ -104,15 +103,12 @@ class URLProcessorWorker(threading.Thread):
         """
         try:
             log.debug(f"Processing {task}")
-            cfg = readConfig()
-            outdir = getOutputFileName(cfg, vtype=task.vtype)
-
             if task.vtype == "i":
                 # iplayer processing
-                cmd = ["get_iplayer", "--url", task.url, "-o", outdir]
+                cmd = ["get_iplayer", "--url", task.url]
             else:
                 # yt-dlp for videos and playlists
-                cmd = ["yt-dlp", "-o", outdir, task.url]
+                cmd = ["yt-dlp", task.url]
 
             log.info(f"Running command: {' '.join(cmd)}")
             sout, serr = shellCommand(cmd)

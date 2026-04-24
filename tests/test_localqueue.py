@@ -137,12 +137,12 @@ def test_shutdown_drains_queue():
 
 
 def test_processing_task_different_vtypes():
-    """Test that different vtypes are preserved in tasks."""
+    """Test command selection by vtype and ensure no explicit -o option is used."""
     videos = ["https://example.com/v1", "https://example.com/v2"]
     playlists = ["https://example.com/p1"]
     iplayer = ["https://example.com/i1"]
 
-    processor = LocalQueueProcessor(num_workers=1)
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
 
     with patch("cliptube.localqueue.shellCommand") as mock_cmd:
         mock_cmd.return_value = ("", "")
@@ -154,6 +154,14 @@ def test_processing_task_different_vtypes():
 
         # Should have been called once per URL
         assert mock_cmd.call_count >= 4
+
+        called_cmds = [list(call.args[0]) for call in mock_cmd.call_args_list]
+        assert ["yt-dlp", "https://example.com/v1"] in called_cmds
+        assert ["yt-dlp", "https://example.com/v2"] in called_cmds
+        assert ["yt-dlp", "https://example.com/p1"] in called_cmds
+        assert ["get_iplayer", "--url", "https://example.com/i1"] in called_cmds
+        for cmd in called_cmds:
+            assert "-o" not in cmd
 
     processor.shutdown(timeout=2)
 
@@ -205,18 +213,20 @@ def test_cache_restore_on_startup(monkeypatch, tmp_path):
     with open(cache_file, "w") as f:
         json.dump(cached_tasks, f)
 
-    # Create processor with restore enabled
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=True)
-
-    # Verify tasks were loaded by checking queue size and task properties
+    # Patch command execution before processor startup so restored tasks are mocked.
     with patch("cliptube.localqueue.shellCommand") as mock_cmd:
         mock_cmd.return_value = ("", "")
+
+        # Create processor with restore enabled
+        processor = LocalQueueProcessor(num_workers=1, restore_from_cache=True)
+
+        # Verify tasks were loaded and processed
         processor.task_queue.join()
 
         # All 2 cached tasks should have been processed
         assert mock_cmd.call_count >= 2
 
-    processor.shutdown(timeout=2)
+        processor.shutdown(timeout=2)
 
     # Cache file should be deleted after loading
     assert not cache_file.exists()
