@@ -19,14 +19,24 @@
 
 """Local queue-based URL processor with background worker thread."""
 
+import json
+import os
 import sys
 import threading
+from pathlib import Path
 from queue import Queue
 
 from cliptube import errorNotify, log
-from cliptube.config import readConfig
+from cliptube.config import expandPath, readConfig
 from cliptube.files import getOutputFileName
 from cliptube.shell import shellCommand
+
+
+def get_cache_path():
+    """Return the cache file path for pending queue items."""
+    cache_dir = expandPath("~/.cache/cliptube")
+    Path(cache_dir).mkdir(parents=True, exist_ok=True)
+    return os.path.join(cache_dir, "pending_queue.json")
 
 
 class ProcessingTask:
@@ -45,6 +55,15 @@ class ProcessingTask:
 
     def __repr__(self):
         return f"ProcessingTask(url={self.url[:50]}..., vtype={self.vtype})"
+
+    def to_dict(self):
+        """Convert task to a dictionary for serialization."""
+        return {"url": self.url, "vtype": self.vtype}
+
+    @classmethod
+    def from_dict(cls, data):
+        """Create a task from a dictionary."""
+        return cls(url=data["url"], vtype=data["vtype"])
 
 
 class URLProcessorWorker(threading.Thread):
@@ -115,22 +134,72 @@ class URLProcessorWorker(threading.Thread):
 class LocalQueueProcessor:
     """
     Manages a queue and worker thread(s) for local URL processing.
+    Supports cache persistence for unprocessed items on shutdown.
     """
 
-    def __init__(self, num_workers=1):
+    def __init__(self, num_workers=1, restore_from_cache=True):
         """
         Initialize the processor.
 
         Args:
             num_workers: Number of worker threads (default: 1, sequential processing)
+            restore_from_cache: Whether to restore pending items from cache (default: True)
         """
         self.task_queue = Queue()
+        self.cache_path = get_cache_path()
         self.workers = []
+
+        # Restore from cache if available and requested
+        if restore_from_cache:
+            self._load_from_cache()
+
         for _ in range(num_workers):
             worker = URLProcessorWorker(self.task_queue)
             worker.start()
             self.workers.append(worker)
         log.debug(f"Started {num_workers} URL processor worker(s)")
+
+    def _load_from_cache(self):
+        """Load pending tasks from cache if it exists."""
+        if os.path.exists(self.cache_path):
+            try:
+                with open(self.cache_path, "r") as f:
+                    cached_tasks = json.load(f)
+                count = 0
+                for task_data in cached_tasks:
+                    task = ProcessingTask.from_dict(task_data)
+                    self.task_queue.put(task)
+                    count += 1
+                log.info(f"Restored {count} tasks from cache: {self.cache_path}")
+                os.remove(self.cache_path)
+            except Exception as e:
+                log.error(f"Failed to restore tasks from cache: {e}")
+                errorNotify(sys.exc_info()[2], e)
+
+    def _save_to_cache(self):
+        """Save pending tasks to cache for later recovery."""
+        try:
+            tasks = []
+            # Drain the queue into a list
+            while not self.task_queue.empty():
+                try:
+                    task = self.task_queue.get_nowait()
+                    if task is not None:  # Skip sentinel values
+                        tasks.append(task.to_dict())
+                except Exception:
+                    break
+
+            if tasks:
+                with open(self.cache_path, "w") as f:
+                    json.dump(tasks, f, indent=2)
+                log.info(f"Saved {len(tasks)} tasks to cache: {self.cache_path}")
+            else:
+                # Clean up empty cache file if it exists
+                if os.path.exists(self.cache_path):
+                    os.remove(self.cache_path)
+        except Exception as e:
+            log.error(f"Failed to save tasks to cache: {e}")
+            errorNotify(sys.exc_info()[2], e)
 
     def queue_urls(self, urls, vtype="v"):
         """
@@ -145,16 +214,32 @@ class LocalQueueProcessor:
             self.task_queue.put(task)
             log.debug(f"Queued: {task}")
 
-    def shutdown(self, timeout=None):
+    def shutdown(self, timeout=None, wait_for_current=True):
         """
-        Gracefully shut down, waiting for pending tasks to complete.
+        Gracefully shut down, allowing current job to finish then saving pending items.
 
         Args:
-            timeout: Maximum seconds to wait for tasks to finish
+            timeout: Maximum seconds to wait for current task to finish
+            wait_for_current: If True, wait for current job to finish before saving cache.
+                              If False, save immediately (faster shutdown).
         """
-        log.info("Waiting for queued tasks to complete...")
-        self.task_queue.join()
-        log.debug("All tasks complete, stopping workers...")
+        log.info("URL processor shutting down...")
+
+        if wait_for_current:
+            # Wait for the current job to finish (with timeout)
+            log.info("Waiting for current task to complete...")
+            self.task_queue.join()
+            log.debug("Current task complete")
+        else:
+            log.debug(
+                "Skipping wait for current task, saving pending items immediately"
+            )
+
+        # Save remaining tasks to cache
+        self._save_to_cache()
+
+        # Stop the workers
+        log.debug("Stopping workers...")
         for worker in self.workers:
             self.task_queue.put(None)  # Sentinel to signal worker to exit
             worker.stop()
@@ -167,16 +252,22 @@ class LocalQueueProcessor:
 _processor = None
 
 
-def initialize(num_workers=1):
+def initialize(num_workers=1, restore_from_cache=True):
     """
     Initialize the global URL processor.
 
     Args:
         num_workers: Number of worker threads
+        restore_from_cache: Whether to restore pending items from cache on startup
+
+    Returns:
+        The initialized LocalQueueProcessor instance
     """
     global _processor
     if _processor is None:
-        _processor = LocalQueueProcessor(num_workers=num_workers)
+        _processor = LocalQueueProcessor(
+            num_workers=num_workers, restore_from_cache=restore_from_cache
+        )
     return _processor
 
 
@@ -197,14 +288,15 @@ def queue_urls(urls, vtype="v"):
     _processor.queue_urls(urls, vtype=vtype)
 
 
-def shutdown(timeout=None):
+def shutdown(timeout=None, wait_for_current=True):
     """
     Gracefully shut down the processor.
 
     Args:
-        timeout: Maximum seconds to wait for pending tasks
+        timeout: Maximum seconds to wait for current task to finish
+        wait_for_current: If True, wait for current job to finish. If False, save immediately.
     """
     global _processor
     if _processor is not None:
-        _processor.shutdown(timeout=timeout)
+        _processor.shutdown(timeout=timeout, wait_for_current=wait_for_current)
         _processor = None

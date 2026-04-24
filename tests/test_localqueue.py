@@ -19,6 +19,7 @@
 
 """Tests for the localqueue module."""
 
+import json
 from unittest.mock import patch
 
 import cliptube.localqueue as localqueue
@@ -32,6 +33,22 @@ def test_ProcessingTask():
     assert task.url == url
     assert task.vtype == "v"
     assert "ProcessingTask" in repr(task)
+
+
+def test_ProcessingTask_serialization():
+    """Test ProcessingTask serialization and deserialization."""
+    url = "https://www.youtube.com/watch?v=test123"
+    task = ProcessingTask(url, vtype="p")
+
+    # Serialize to dict
+    task_dict = task.to_dict()
+    assert task_dict["url"] == url
+    assert task_dict["vtype"] == "p"
+
+    # Deserialize from dict
+    restored_task = ProcessingTask.from_dict(task_dict)
+    assert restored_task.url == url
+    assert restored_task.vtype == "p"
 
 
 def test_ProcessingTask_vtype_variants():
@@ -139,3 +156,91 @@ def test_processing_task_different_vtypes():
         assert mock_cmd.call_count >= 4
 
     processor.shutdown(timeout=2)
+
+
+def test_cache_save_and_load(monkeypatch, tmp_path):
+    """Test saving pending tasks to cache and loading them on startup."""
+    # Mock the cache path to use a temp directory
+    cache_file = tmp_path / "test_queue.json"
+
+    def mock_cache_path():
+        return str(cache_file)
+
+    monkeypatch.setattr("cliptube.localqueue.get_cache_path", mock_cache_path)
+
+    # Create processor and queue some items
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
+    urls = [f"https://example.com/video{i}" for i in range(3)]
+    processor.queue_urls(urls, vtype="v")
+
+    # Shutdown without waiting to trigger cache save
+    processor.shutdown(wait_for_current=False, timeout=1)
+
+    # Verify cache file was created
+    assert cache_file.exists()
+
+    # Load and verify cached content
+    with open(cache_file) as f:
+        cached_data = json.load(f)
+    assert len(cached_data) == 3
+    for i, item in enumerate(cached_data):
+        assert item["url"] == urls[i]
+        assert item["vtype"] == "v"
+
+
+def test_cache_restore_on_startup(monkeypatch, tmp_path):
+    """Test that cached tasks are restored when processor starts."""
+    cache_file = tmp_path / "test_queue.json"
+
+    def mock_cache_path():
+        return str(cache_file)
+
+    monkeypatch.setattr("cliptube.localqueue.get_cache_path", mock_cache_path)
+
+    # Create cache file with test data
+    cached_tasks = [
+        {"url": "https://example.com/cached1", "vtype": "v"},
+        {"url": "https://example.com/cached2", "vtype": "p"},
+    ]
+    with open(cache_file, "w") as f:
+        json.dump(cached_tasks, f)
+
+    # Create processor with restore enabled
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=True)
+
+    # Verify tasks were loaded by checking queue size and task properties
+    with patch("cliptube.localqueue.shellCommand") as mock_cmd:
+        mock_cmd.return_value = ("", "")
+        processor.task_queue.join()
+
+        # All 2 cached tasks should have been processed
+        assert mock_cmd.call_count >= 2
+
+    processor.shutdown(timeout=2)
+
+    # Cache file should be deleted after loading
+    assert not cache_file.exists()
+
+
+def test_shutdown_with_wait_for_current_false():
+    """Test fast shutdown that saves pending items without waiting."""
+    processor = LocalQueueProcessor(num_workers=1)
+
+    with patch("cliptube.localqueue.shellCommand") as mock_cmd:
+        # Make commands slow
+        import time
+
+        def slow_command(*args, **kwargs):
+            time.sleep(0.1)
+            return ("", "")
+
+        mock_cmd.side_effect = slow_command
+        urls = [f"https://example.com/slow{i}" for i in range(5)]
+        processor.queue_urls(urls, vtype="v")
+
+        # Fast shutdown without waiting for all tasks
+        processor.shutdown(wait_for_current=False, timeout=1)
+
+        # Only some tasks should have been processed (not all 5)
+        # The exact number depends on timing, but it should be less than 5
+        assert mock_cmd.call_count < 5
