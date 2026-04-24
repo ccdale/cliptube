@@ -137,7 +137,7 @@ def test_shutdown_drains_queue():
 
 
 def test_processing_task_different_vtypes():
-    """Test command selection by vtype and ensure no explicit -o option is used."""
+    """Test command selection by vtype with correct output handling."""
     videos = ["https://example.com/v1", "https://example.com/v2"]
     playlists = ["https://example.com/p1"]
     iplayer = ["https://example.com/i1"]
@@ -158,10 +158,16 @@ def test_processing_task_different_vtypes():
         called_cmds = [list(call.args[0]) for call in mock_cmd.call_args_list]
         assert ["yt-dlp", "https://example.com/v1"] in called_cmds
         assert ["yt-dlp", "https://example.com/v2"] in called_cmds
-        assert ["yt-dlp", "https://example.com/p1"] in called_cmds
+        assert (
+            [
+                "yt-dlp",
+                "-o",
+                "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s",
+                "https://example.com/p1",
+            ]
+            in called_cmds
+        )
         assert ["get_iplayer", "--url", "https://example.com/i1"] in called_cmds
-        for cmd in called_cmds:
-            assert "-o" not in cmd
 
     processor.shutdown(timeout=2)
 

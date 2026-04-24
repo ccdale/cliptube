@@ -106,8 +106,12 @@ class URLProcessorWorker(threading.Thread):
             if task.vtype == "i":
                 # iplayer processing
                 cmd = ["get_iplayer", "--url", task.url]
+            elif task.vtype == "p":
+                # yt-dlp for playlists, organized by playlist name
+                output_template = "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s"
+                cmd = ["yt-dlp", "-o", output_template, task.url]
             else:
-                # yt-dlp for videos and playlists
+                # yt-dlp for videos
                 cmd = ["yt-dlp", task.url]
 
             log.info(f"Running command: {' '.join(cmd)}")
