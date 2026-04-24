@@ -1,6 +1,6 @@
 [project]
 name = "cliptube"
-version = "1.5.0"
+version = "2.0.0"
 description = "tool to download youtube videos from the clipboard."
 authors = [{ name = "ccdale", email = "chris.charles.allison+cliptube@gmail.com" }]
 requires-python = ">=3.11,<4"
