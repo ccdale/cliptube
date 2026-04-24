@@ -37,12 +37,26 @@ def getOutputFileName(cfg, vtype="v"):
         writeConfig(cfg)
         match vtype:
             case "v":
-                idir = expandPath(f"~/{cfg['youtube']['videodir']}")
+                idir = expandPath(cfg["youtube"]["videodir"])
             case "p":
-                idir = expandPath(f"~/{cfg['youtube']['playlistdir']}")
+                idir = expandPath(cfg["youtube"]["playlistdir"])
             case "i":
-                idir = expandPath(f"~/{cfg['youtube']['iplayerdir']}")
+                idir = expandPath(cfg["iplayer"]["iplayerdir"])
         return f"{idir}/{fnum:0>2}"
+    except Exception as e:
+        errorNotify(sys.exc_info()[2], e)
+
+
+def getOutputDirectory(cfg, vtype="v"):
+    try:
+        match vtype:
+            case "v":
+                idir = expandPath(cfg["youtube"]["videodir"])
+            case "p":
+                idir = expandPath(cfg["youtube"]["playlistdir"])
+            case "i":
+                idir = expandPath(cfg["iplayer"]["iplayerdir"])
+        return idir
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 

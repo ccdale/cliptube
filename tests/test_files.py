@@ -17,9 +17,10 @@
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
 import tempfile
+from unittest.mock import patch
 
-from cliptube.config import expandPath, readConfig
-from cliptube.files import dirFileList, getOutputFileName, homeDir
+from cliptube.config import expandPath
+from cliptube.files import dirFileList, getOutputDirectory, getOutputFileName, homeDir
 
 
 def test_homeDir():
@@ -29,14 +30,44 @@ def test_homeDir():
 
 
 def test_getOutputFileName():
-    homed = homeDir()
-    cfg = readConfig()
-    ofn = getOutputFileName(cfg, vtype="v")
-    assert ofn.startswith(f"{homed}/.cliptube/videos")
-    ofn = getOutputFileName(cfg, vtype="p")
-    assert ofn.startswith(f"{homed}/.cliptube/playlists")
-    ofn = getOutputFileName(cfg, vtype="i")
-    assert ofn.startswith(f"{homed}/.cliptube/iplayer")
+    cfg = {
+        "youtube": {
+            "filenumber": "5",
+            "videodir": "/mnt/nas/youtube/subs",
+            "playlistdir": "/mnt/nas/youtube/playlists",
+            "iplayerdir": "/mnt/nas/youtube/iplayer",
+        },
+        "iplayer": {
+            "iplayerdir": "/mnt/nas/youtube/iplayer",
+        },
+    }
+    with patch("cliptube.files.writeConfig") as mock_write:
+        ofn = getOutputFileName(cfg, vtype="v")
+        assert ofn == f"{expandPath('/mnt/nas/youtube/subs')}/05"
+        ofn = getOutputFileName(cfg, vtype="p")
+        assert ofn == f"{expandPath('/mnt/nas/youtube/playlists')}/06"
+        ofn = getOutputFileName(cfg, vtype="i")
+        assert ofn == f"{expandPath('/mnt/nas/youtube/iplayer')}/07"
+        assert cfg["youtube"]["filenumber"] == "8"
+        assert mock_write.call_count == 3
+
+
+def test_getOutputDirectory():
+    cfg = {
+        "youtube": {
+            "videodir": "/mnt/nas/youtube/subs",
+            "playlistdir": "/mnt/nas/youtube/playlists",
+            "iplayerdir": "/mnt/nas/youtube/iplayer",
+        },
+        "iplayer": {
+            "iplayerdir": "/mnt/nas/youtube/iplayer",
+        },
+    }
+    assert getOutputDirectory(cfg, vtype="v") == expandPath("/mnt/nas/youtube/subs")
+    assert getOutputDirectory(cfg, vtype="p") == expandPath(
+        "/mnt/nas/youtube/playlists"
+    )
+    assert getOutputDirectory(cfg, vtype="i") == expandPath("/mnt/nas/youtube/iplayer")
 
 
 def test_dirFileList():
