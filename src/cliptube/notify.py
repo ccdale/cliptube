@@ -23,11 +23,10 @@ import sys
 import threading
 
 import ccalogging
-from ccalogging import log
 from inotify_simple import INotify, flags, masks
 
 import cliptube.shell as shell
-from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
+from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise, log
 from cliptube.config import expandPath, readConfig
 from cliptube.files import dirFileList
 

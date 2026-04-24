@@ -4,14 +4,13 @@ import sys
 
 import ccalogging  # type: ignore
 
-from cliptube import __appname__, __version__, errorExit, errorNotify
+from cliptube import __appname__, __version__, errorExit, errorNotify, log
 from cliptube.config import expandPath, readConfig
 
 logfile = expandPath(f"~/log/{__appname__}.log")
 ccalogging.setLogFile(logfile)
 # ccalogging.setDebug()
 ccalogging.setInfo()
-log = ccalogging.log
 
 
 def getSubsPath(cfg):

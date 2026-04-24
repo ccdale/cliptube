@@ -5,7 +5,7 @@ from threading import Event
 
 import ccalogging  # type: ignore
 
-from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
+from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise, log
 from cliptube.config import readConfig
 from cliptube.files import sendFileTo
 from cliptube.history import getNewUrls
@@ -15,7 +15,6 @@ ccalogging.setConsoleOut()
 # ccalogging.setLogFile(logfile)
 # ccalogging.setDebug()
 ccalogging.setInfo()
-log = ccalogging.log
 
 # exitflag = False
 ev = Event()

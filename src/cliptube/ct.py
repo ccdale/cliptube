@@ -29,7 +29,7 @@ import ccalogging
 import pyclip
 import PySimpleGUIQt as sg
 
-from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
+from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise, log
 from cliptube.config import expandPath, readConfig
 from cliptube.files import sendFileTo
 from cliptube.history import checkUrl
@@ -40,7 +40,6 @@ logfile = expandPath(f"~/log/{__appname__}.log")
 ccalogging.setLogFile(logfile)
 ccalogging.setDebug()
 # ccalogging.setInfo()
-log = ccalogging.log
 
 
 def interruptCT(signrcvd, frame):
