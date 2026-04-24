@@ -24,7 +24,7 @@ import os
 import sys
 import threading
 from pathlib import Path
-from queue import Queue
+from queue import Empty, Queue
 
 from cliptube import errorNotify, log
 from cliptube.config import expandPath
@@ -88,6 +88,9 @@ class URLProcessorWorker(threading.Thread):
                     if task is None:  # Sentinel value for shutdown
                         break
                     self._process_task(task)
+                except Empty:
+                    # Queue timeout is expected - just continue waiting
+                    continue
                 except Exception as e:
                     if self.running:
                         errorNotify(sys.exc_info()[2], e)
