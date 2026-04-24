@@ -1,6 +1,6 @@
 import os
 import sys
-from signal import SIGINT, signal
+from signal import SIGINT, SIGTERM, signal
 from threading import Event
 
 import ccalogging  # type: ignore
@@ -29,7 +29,7 @@ class onlyOne(Exception):
 def interruptWP(signrcvd, frame):
     try:
         global ev
-        msg = "Keyboard interrupt received in wclipboard module - exiting."
+        msg = f"Interrupt {signrcvd} received in wclipboard module - exiting."
         log.info(msg)
         ev.set()
         # sys.exit(255)
@@ -40,6 +40,7 @@ def interruptWP(signrcvd, frame):
 # if we get a `ctrl-c` from the keyboard, stop immediately
 # by going to the interruptCT above
 signal(SIGINT, interruptWP)
+signal(SIGTERM, interruptWP)
 
 
 def checkForNewUrls():
@@ -54,11 +55,11 @@ def checkForNewUrls():
 
 def watchparcellite():
     try:
-        log.info(f"{__appname__} {__version__} starting - CTRL-C to exit")
+        log.info(f"{__appname__} {__version__} starting - Interrupt to exit")
         cfg = readConfig()
         while not ev.is_set():
             checkForNewUrls()
-            log.debug(f'sleeping for {cfg["parcellite"]["sleeptime"]} seconds')
+            log.debug(f"sleeping for {cfg['parcellite']['sleeptime']} seconds")
             ev.wait(float(cfg["parcellite"]["sleeptime"]))
         # final check before exiting
         log.info("Final check for urls before shutting down")
@@ -70,11 +71,11 @@ def watchparcellite():
 
 def watchCopyQ():
     try:
-        log.info(f"{__appname__} {__version__} starting - CTRL-C to exit")
+        log.info(f"{__appname__} {__version__} starting - Interrupt to exit")
         cfg = readConfig()
         while not ev.is_set():
             checkForNewUrls()
-            log.debug(f'sleeping for {cfg["parcellite"]["sleeptime"]} seconds')
+            log.debug(f"sleeping for {cfg['parcellite']['sleeptime']} seconds")
             ev.wait(float(cfg["parcellite"]["sleeptime"]))
         # final check before exiting
         log.info("Final check for urls before shutting down")
@@ -88,15 +89,20 @@ def watchGnomeClipboard():
     try:
         pidfn = "/tmp/cliptube.pid"
         oneOnly(pidfn)
-        log.info(f"{__appname__} {__version__} starting - CTRL-C to exit")
+        log.info(f"{__appname__} {__version__} starting - Interrupt to exit")
         cfg = readConfig()
         while not ev.is_set():
             checkForNewUrls()
-            log.debug(f'sleeping for {cfg["gnomeclipindicator"]["sleeptime"]} seconds')
+            log.debug(f"sleeping for {cfg['gnomeclipindicator']['sleeptime']} seconds")
             ev.wait(float(cfg["gnomeclipindicator"]["sleeptime"]))
         # final check before exiting
         log.info("Final check for urls before shutting down")
         checkForNewUrls()
+        if os.path.exists(pidfn):
+            try:
+                os.unlink(pidfn)
+            except Exception as e:
+                log.error(f"Error deleting pid file: {e}")
         log.info(f"{__appname__} closing down, bye.")
     except Exception as e:
         errorExit(sys.exc_info()[2], e)
@@ -175,7 +181,7 @@ def oneOnly(pidfn):
     try:
         if os.path.exists(pidfn):
             ipid = checkPid(pidfn)
-            if not ipid:
+            if ipid:
                 raise onlyOne(f"{__appname__} is already running with pid {ipid}")
         with open(pidfn, "w") as ofn:
             log.info("Writing pid file")

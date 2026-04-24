@@ -17,15 +17,13 @@
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
 import os
-from signal import signal, SIGINT
 import sys
+from signal import SIGINT, signal
 from threading import Event
-import time
 
 # import daemon
 # import ccalogging
 # from ccalogging import log
-
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import expandPath, readConfig
 from cliptube.files import dirFileList
@@ -77,11 +75,15 @@ def getVideos(path):
                         cout, cerr = shellCommand(cmd)
                         # print(f"{cout=}")
                         # print(f"{cerr=}")
-                        print(f"deleting incoming file {fqfn}")
-                        os.unlink(fqfn)
                     except Exception as e:
                         print(f"shellCommand {cmd} exited with an error {e}")
                         os.rename(fqfn, f"{fqfn}.err")
+                        break
+                print(f"deleting incoming file {fqfn}")
+                try:
+                    os.unlink(fqfn)
+                except Exception as e:
+                    print(f"Error deleting file {fqfn}: {e}")
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
 
@@ -126,9 +128,9 @@ def dirWatch():
         print(f"starting {__appname__} {__version__} directoriesWatch")
         cfg = readConfig()
         paths = []
-        paths.append(expandPath(f'~/{cfg["mediaserver"]["videodir"]}'))
-        paths.append(expandPath(f'~/{cfg["mediaserver"]["playlistdir"]}'))
-        paths.append(expandPath(f'~/{cfg["mediaserver"]["iplayerdir"]}'))
+        paths.append(expandPath(f"~/{cfg['mediaserver']['videodir']}"))
+        paths.append(expandPath(f"~/{cfg['mediaserver']['playlistdir']}"))
+        paths.append(expandPath(f"~/{cfg['mediaserver']['iplayerdir']}"))
         print(f"directoriesWatch will watch {paths}")
         watchDirectories(paths)
         print("directoriesWatch completed")
@@ -136,16 +138,16 @@ def dirWatch():
         errorExit(sys.exc_info()[2], e)
 
 
-def daemonDirWatch():
-    try:
-        # global log
-        with daemon.DaemonContext():
-            logfile = expandPath(f"~/log/{__appname__}-watchdir.log")
-            # ccalogging.setLogFile(logfile)
-            # ccalogging.setDebug()
-            # ccalogging.setInfo()
-            # log = ccalogging.log
-            # log.debug(f"{__appname__}-watchdir deamonised!")
-            dirWatch()
-    except Exception as e:
-        errorExit(sys.exc_info()[2], e)
+# def daemonDirWatch():
+#     try:
+#         # global log
+#         with daemon.DaemonContext():
+#             logfile = expandPath(f"~/log/{__appname__}-watchdir.log")
+#             # ccalogging.setLogFile(logfile)
+#             # ccalogging.setDebug()
+#             # ccalogging.setInfo()
+#             # log = ccalogging.log
+#             # log.debug(f"{__appname__}-watchdir deamonised!")
+#             dirWatch()
+#     except Exception as e:
+#         errorExit(sys.exc_info()[2], e)
