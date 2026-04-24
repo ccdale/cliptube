@@ -108,7 +108,9 @@ class URLProcessorWorker(threading.Thread):
                 cmd = ["get_iplayer", "--url", task.url]
             elif task.vtype == "p":
                 # yt-dlp for playlists, organized by playlist name
-                output_template = "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s"
+                output_template = (
+                    "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s"
+                )
                 cmd = ["yt-dlp", "-o", output_template, task.url]
             else:
                 # yt-dlp for videos

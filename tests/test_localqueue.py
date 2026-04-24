@@ -158,15 +158,12 @@ def test_processing_task_different_vtypes():
         called_cmds = [list(call.args[0]) for call in mock_cmd.call_args_list]
         assert ["yt-dlp", "https://example.com/v1"] in called_cmds
         assert ["yt-dlp", "https://example.com/v2"] in called_cmds
-        assert (
-            [
-                "yt-dlp",
-                "-o",
-                "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s",
-                "https://example.com/p1",
-            ]
-            in called_cmds
-        )
+        assert [
+            "yt-dlp",
+            "-o",
+            "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s",
+            "https://example.com/p1",
+        ] in called_cmds
         assert ["get_iplayer", "--url", "https://example.com/i1"] in called_cmds
 
     processor.shutdown(timeout=2)

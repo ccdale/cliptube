@@ -7,8 +7,8 @@ import ccalogging  # type: ignore
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise, log
 from cliptube.config import readConfig
-from cliptube.files import sendFileTo
 from cliptube.history import getNewUrls
+from cliptube import localqueue
 
 ccalogging.setConsoleOut()
 # logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
@@ -85,11 +85,14 @@ def watchCopyQ():
 
 
 def watchGnomeClipboard():
+    processor = None
     try:
         pidfn = "/tmp/cliptube.pid"
         oneOnly(pidfn)
         log.info(f"{__appname__} {__version__} starting - Interrupt to exit")
         cfg = readConfig()
+        # Initialize the local queue processor
+        processor = localqueue.initialize(num_workers=1, restore_from_cache=True)
         while not ev.is_set():
             checkForNewUrls()
             log.debug(f"sleeping for {cfg['gnomeclipindicator']['sleeptime']} seconds")
@@ -97,6 +100,9 @@ def watchGnomeClipboard():
         # final check before exiting
         log.info("Final check for urls before shutting down")
         checkForNewUrls()
+        # Gracefully shutdown the processor
+        if processor:
+            processor.shutdown(timeout=90, wait_for_current=True)
         if os.path.exists(pidfn):
             try:
                 os.unlink(pidfn)
@@ -104,6 +110,12 @@ def watchGnomeClipboard():
                 log.error(f"Error deleting pid file: {e}")
         log.info(f"{__appname__} closing down, bye.")
     except Exception as e:
+        # Ensure processor shutdown even on error
+        if processor:
+            try:
+                processor.shutdown(timeout=5, wait_for_current=False)
+            except Exception as shutdown_err:
+                log.error(f"Error during processor shutdown: {shutdown_err}")
         errorExit(sys.exc_info()[2], e)
 
 
@@ -126,39 +138,27 @@ def sortUrls(urls):
 
 def processVideoUrls(videos):
     try:
-        log.debug(f"sending {len(videos)} video urls to mediaserver.")
-        tfn = f"/tmp/{__appname__}.list"
-        with open(tfn, "w") as ofn:
-            ofn.write("\n".join(videos))
-            ofn.write("\n")
-        sendFileTo(tfn, vtype="v")
-        log.info(f"sent {len(videos)} video urls to mediaserver")
+        log.debug(f"queueing {len(videos)} video urls for local processing.")
+        localqueue.queue_urls(videos, vtype="v")
+        log.info(f"queued {len(videos)} video urls for processing")
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 
 
 def processPlaylistUrls(videos):
     try:
-        log.debug(f"sending {len(videos)} playlist urls to mediaserver.")
-        tfn = f"/tmp/{__appname__}.list"
-        with open(tfn, "w") as ofn:
-            ofn.write("\n".join(videos))
-            ofn.write("\n")
-        sendFileTo(tfn, vtype="p")
-        log.info(f"sent {len(videos)} playlist urls to mediaserver")
+        log.debug(f"queueing {len(videos)} playlist urls for local processing.")
+        localqueue.queue_urls(videos, vtype="p")
+        log.info(f"queued {len(videos)} playlist urls for processing")
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 
 
 def processIPlayerUrls(videos):
     try:
-        log.debug(f"sending {len(videos)} iplayer urls to mediaserver.")
-        tfn = f"/tmp/{__appname__}.list"
-        with open(tfn, "w") as ofn:
-            ofn.write("\n".join(videos))
-            ofn.write("\n")
-        sendFileTo(tfn, vtype="i")
-        log.info(f"sent {len(videos)} iplayer urls to mediaserver")
+        log.debug(f"queueing {len(videos)} iplayer urls for local processing.")
+        localqueue.queue_urls(videos, vtype="i")
+        log.info(f"queued {len(videos)} iplayer urls for processing")
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 
