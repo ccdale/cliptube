@@ -18,6 +18,7 @@
 #
 
 """subprocess commands to send via a shell."""
+
 import subprocess
 import sys
 from subprocess import CalledProcessError
@@ -46,6 +47,7 @@ def shellCommand(cmd, canfail=False):
     returns a tuple of (stdout, stderr) or None
     raises an exception if subprocess returns a non-zero exitcode
     """
+    ret = None
     try:
         cmd = listCmd(cmd)
         # print(" ".join(cmd))
@@ -55,12 +57,16 @@ def shellCommand(cmd, canfail=False):
             ret.check_returncode()
         return (ret.stdout, ret.stderr)
     except CalledProcessError as e:
-        msg = f"ERROR: {ret.stderr}\nstdout: {ret.stdout}"
+        stderr = ret.stderr if ret else "N/A"
+        stdout = ret.stdout if ret else "N/A"
+        msg = f"ERROR: {stderr}\nstdout: {stdout}"
         msg += f"\nCommand was:\n{' '.join(cmd)}"
         print(msg)
         errorRaise(sys.exc_info()[2], e)
     except Exception as e:
-        msg = f"ERROR: {ret.stderr}\nstdout: {ret.stdout}"
+        stderr = ret.stderr if ret else "N/A"
+        stdout = ret.stdout if ret else "N/A"
+        msg = f"ERROR: {stderr}\nstdout: {stdout}"
         msg += f"\nCommand was:\n{' '.join(cmd)}"
         print(msg)
         errorRaise(sys.exc_info()[2], e)

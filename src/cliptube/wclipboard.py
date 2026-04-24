@@ -5,10 +5,17 @@ from threading import Event
 
 import ccalogging  # type: ignore
 
-from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise, log
+from cliptube import (
+    __appname__,
+    __version__,
+    errorExit,
+    errorNotify,
+    errorRaise,
+    localqueue,
+    log,
+)
 from cliptube.config import readConfig
 from cliptube.history import getNewUrls
-from cliptube import localqueue
 
 ccalogging.setConsoleOut()
 # logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
