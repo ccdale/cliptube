@@ -26,10 +26,10 @@ import ccalogging
 from ccalogging import log
 from inotify_simple import INotify, flags, masks
 
-from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
-from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
-from cliptube.files import dirFileList
 import cliptube.shell as shell
+from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
+from cliptube.config import expandPath, readConfig
+from cliptube.files import dirFileList
 
 
 def interruptNotify(signrcvd, frame):
@@ -55,6 +55,7 @@ ev.clear()
 class InotifyThread(threading.Thread):
     def __init__(self, path):
         self.xpath = path
+        self.stopping = threading.Event()
 
         # Initialize the parent class
         threading.Thread.__init__(self)
@@ -89,6 +90,7 @@ class InotifyThread(threading.Thread):
 
     def stop(self):
         # Request for stop by writing in the pipe
+        self.stopping.set()
         if not self.__write.closed:
             self.__write.write(b"\x00")
             self.__write.close()
@@ -165,9 +167,10 @@ class DirectoryWatcher(InotifyThread):
             errorNotify(sys.exc_info()[2], e)
             ## print(f"error: {e}")
         finally:
-            # restart the inotify thread
-            print("restarting inotify")
-            self.watchdesc = self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
+            if not self.stopping.is_set() and os.path.isdir(self.xpath):
+                # restart the inotify thread
+                print("restarting inotify")
+                self.watchdesc = self.xin.add_watch(self.xpath, flags.CLOSE_WRITE)
 
     def readFile(self, fqfn):
         with open(fqfn, "r") as ifn:
@@ -203,14 +206,12 @@ def directoryWatches(testing=None):
             )
             log.debug(f"test directories: {testing}")
             videodir = testing["videos"]
-            playlistdir = testing["playlists"]
             iplayerdir = testing["iplayer"]
         else:
             log.info(f"{__appname__} {__version__} directoryWatches starting")
             cfg = readConfig()
-            videodir = expandPath(f'~/{cfg["mediaserver"]["videodir"]}')
-            playlistdir = expandPath(f'~/{cfg["mediaserver"]["playlistdir"]}')
-            iplayerdir = expandPath(f'~/{cfg["mediaserver"]["iplayerdir"]}')
+            videodir = expandPath(f"~/{cfg['mediaserver']['videodir']}")
+            iplayerdir = expandPath(f"~/{cfg['mediaserver']['iplayerdir']}")
             dvw = DirectoryWatcher(videodir, cmd=["yt-dlp", "-a", "<fqfn>"])
             dvw.start()
             dpw = DirectoryWatcher(

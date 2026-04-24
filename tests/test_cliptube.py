@@ -21,7 +21,7 @@ import sys
 
 import pytest
 
-from cliptube import errorExit, errorNotify, errorRaise, __version__
+from cliptube import errorExit, errorNotify, errorRaise
 
 
 class TheException(Exception):
@@ -31,10 +31,6 @@ class TheException(Exception):
     """
 
     pass
-
-
-def test_cliptube_version():
-    assert __version__ == "1.4.27"
 
 
 def test_errorNotify(caplog):

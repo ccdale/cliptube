@@ -16,10 +16,9 @@
 #     You should have received a copy of the GNU General Public License
 #     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
 #
-import os
 import tempfile
 
-from cliptube.config import ConfigFileNotFound, expandPath, readConfig
+from cliptube.config import expandPath, readConfig
 from cliptube.files import dirFileList, getOutputFileName, homeDir
 
 

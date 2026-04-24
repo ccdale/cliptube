@@ -163,4 +163,4 @@ def readGnomeClipIndicatorFile():
 if __name__ == "__main__":
     # urls = readParcelliteHistory()
     urls = readGnomeClipIndicatorFile()
-    print(f"{'\n'.join(urls)}")
+    print("\n".join(urls))

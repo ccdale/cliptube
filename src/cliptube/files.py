@@ -23,7 +23,7 @@ import sys
 from fabric import Connection
 
 from cliptube import errorNotify
-from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
+from cliptube.config import expandPath, readConfig, writeConfig
 
 
 def getOutputFileName(cfg, vtype="v"):
@@ -37,11 +37,11 @@ def getOutputFileName(cfg, vtype="v"):
         writeConfig(cfg)
         match vtype:
             case "v":
-                idir = expandPath(f'~/{cfg["youtube"]["videodir"]}')
+                idir = expandPath(f"~/{cfg['youtube']['videodir']}")
             case "p":
-                idir = expandPath(f'~/{cfg["youtube"]["playlistdir"]}')
+                idir = expandPath(f"~/{cfg['youtube']['playlistdir']}")
             case "i":
-                idir = expandPath(f'~/{cfg["youtube"]["iplayerdir"]}')
+                idir = expandPath(f"~/{cfg['youtube']['iplayerdir']}")
         return f"{idir}/{fnum:0>2}"
     except Exception as e:
         errorNotify(sys.exc_info()[2], e)
@@ -52,7 +52,7 @@ def sendFileTo(fn, vtype="v"):
         cfg = readConfig()
         mhost = cfg["mediaserver"]["host"]
         muser = cfg["mediaserver"]["user"]
-        mkeyfn = expandPath(f'~/.ssh/{cfg["mediaserver"]["keyfn"]}')
+        mkeyfn = expandPath(f"~/.ssh/{cfg['mediaserver']['keyfn']}")
         ckwargs = {"key_filename": mkeyfn}
         ofn = getOutputFileName(cfg, vtype=vtype)
         with Connection(host=mhost, user=muser, connect_kwargs=ckwargs) as c:

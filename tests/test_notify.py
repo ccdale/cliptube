@@ -20,10 +20,8 @@ import os
 import tempfile
 import time
 
-import pytest
-
-from cliptube import __appname__, __version__
 import cliptube.notify as notify
+from cliptube import __appname__, __version__
 
 
 def test_directoryWatches(capsys):
@@ -54,6 +52,7 @@ def test_DirectoryWatcher(capsys):
         # allow time for the thread to notice
         time.sleep(1)
         dw.stop()
+        dw.join(timeout=2)
         captured2 = capsys.readouterr()
         print(f"{captured2=}")
         assert "testfile" in captured2.out

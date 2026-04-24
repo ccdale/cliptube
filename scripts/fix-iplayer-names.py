@@ -1,7 +1,7 @@
 import re
 import sys
 
-from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
+from cliptube import errorNotify
 
 # filenames look like this
 # Sherlock_Series_1_-_01._A_Study_in_Pink_b00t8wp0_editorial.mp4
@@ -32,9 +32,7 @@ for fn in fns:
         episode = twodigits(groups["episode"])
         name = groups["name"].replace("_", " ").strip()
         title = groups["title"].replace("_", " ").strip()
-        print(
-            f"mv -v \"{fn}\" \"{name} - {title} - S{series}E{episode}.{groups['ext']}\""
-        )
+        print(f'mv -v "{fn}" "{name} - {title} - S{series}E{episode}.{groups["ext"]}"')
 
 # match = bits.match("Sherlock_Series_1_-_01._A_Study_in_Pink_b00t8wp0_editorial.mp4")
 # if match:

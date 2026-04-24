@@ -18,11 +18,11 @@
 #
 
 """test module for the cliptube.config module"""
+
 import os
 
 import pytest
 
-from cliptube import __appname__
 from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
 
 
@@ -40,7 +40,7 @@ def test_readConfig():
 def test_readConfig_does_not_exist(capsys):
     junkname = "does_not_existify"
     with pytest.raises(ConfigFileNotFound):
-        junk = readConfig(overrideappname=junkname)
+        readConfig(overrideappname=junkname)
 
 
 def test_writeConfig():
@@ -49,6 +49,5 @@ def test_writeConfig():
     fv += 1
     cfg["testsection"]["fileval"] = str(fv)
     writeConfig(cfg)
-    xcfg = readConfig()
-    xfv = int(cfg["testsection"]["fileval"])
+    xfv = int(readConfig()["testsection"]["fileval"])
     assert xfv == fv

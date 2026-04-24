@@ -1,6 +1,6 @@
 [project]
 name = "cliptube"
-version = "2.0.0"
+version = "2.0.1"
 description = "tool to download youtube videos from the clipboard."
 authors = [{ name = "ccdale", email = "chris.charles.allison+cliptube@gmail.com" }]
 requires-python = ">=3.11,<4"
@@ -24,7 +24,7 @@ cliptube = "cliptube.wclipboard:watchGnomeClipboard"
 dirwatch = "cliptube.watchdir:dirWatch"
 
 [dependency-groups]
-dev = ["pytest"]
+dev = ["pytest", "ruff"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/cliptube"]

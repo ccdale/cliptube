@@ -18,24 +18,21 @@
 #
 
 import os
-from queue import Queue
 import sys
-from signal import signal, SIGINT
 import time
+from queue import Queue
+from signal import SIGINT, signal
 from threading import Event, Thread
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, urlparse
 
 import ccalogging
 import pyclip
-
 import PySimpleGUIQt as sg
-
 
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import expandPath, readConfig
 from cliptube.files import sendFileTo
 from cliptube.history import checkUrl
-
 
 # appname = "cliptube"
 # ccalogging.setConsoleOut()
@@ -68,7 +65,7 @@ class ClipboardTimeout(Exception):
 def goBabe():
     try:
         log.debug(f"{__appname__} {__version__} starting")
-        cfg = readConfig(__appname__)
+        readConfig(__appname__)
         # layout = [[psg.Button("OK"), psg.Button("Cancel")]
         magic = "STOPCLIPBOARDWATCH"
         # lines = []

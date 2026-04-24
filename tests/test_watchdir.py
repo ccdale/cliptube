@@ -24,7 +24,7 @@ from cliptube.files import dirFileList
 def test_getFiles():
     bfn = "testfn"
     tfn = "/".join(["/tmp", bfn])
-    with open(tfn, "w") as ofn:
+    with open(tfn, "w"):
         pass
     fns = dirFileList("/tmp")
     assert bfn in fns
