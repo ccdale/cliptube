@@ -22,12 +22,21 @@
 import json
 from unittest.mock import patch
 
+import pytest
+
 import cliptube.localqueue as localqueue
 from cliptube.localqueue import (
     LocalQueueProcessor,
     ProcessingTask,
     get_merger_output_line,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolate_live_queue_cache(monkeypatch, tmp_path):
+    """Ensure tests never read/write the user's live pending queue cache."""
+    cache_file = tmp_path / "pending_queue.json"
+    monkeypatch.setattr(localqueue, "get_cache_path", lambda: str(cache_file))
 
 
 def test_ProcessingTask():
