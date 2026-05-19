@@ -25,7 +25,7 @@ from threading import Event
 # import ccalogging
 # from ccalogging import log
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
-from cliptube.config import expandPath, readConfig
+from cliptube.config import expandPath, getYtDlpBin, readConfig
 from cliptube.files import dirFileList
 from cliptube.shell import shellCommand
 
@@ -56,7 +56,7 @@ def getVideos(path):
         if path.endswith("iplayer"):
             scmd = ["get_iplayer", "--url"]
         else:
-            scmd = ["/home/chris/bin/yt-dlp"]
+            scmd = [getYtDlpBin()]
         files = dirFileList(path, filterext=".err")
         if files is not None:
             for fn in files:

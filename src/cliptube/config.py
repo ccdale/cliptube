@@ -18,6 +18,7 @@
 #
 
 """config module for cliptube application."""
+
 import configparser
 import os
 import sys
@@ -26,6 +27,8 @@ from pathlib import Path
 from cliptube import __appname__, errorRaise
 
 # from cliptube.files import expandPath
+
+DEFAULT_YTDLP_BIN = "/home/chris/bin/yt-dlp"
 
 
 class ConfigFileNotFound(Exception):
@@ -49,6 +52,15 @@ def readConfig(overrideappname=None):
         config = configparser.ConfigParser()
         config.read(cfgpath)
         return config
+    except Exception as e:
+        errorRaise(sys.exc_info()[2], e)
+
+
+def getYtDlpBin(cfg=None):
+    try:
+        if cfg is None:
+            cfg = readConfig()
+        return expandPath(cfg["mediaserver"].get("ytdlpbin") or DEFAULT_YTDLP_BIN)
     except Exception as e:
         errorRaise(sys.exc_info()[2], e)
 

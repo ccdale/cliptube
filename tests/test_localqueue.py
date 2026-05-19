@@ -144,7 +144,10 @@ def test_processing_task_different_vtypes():
 
     processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
 
-    with patch("cliptube.localqueue.shellCommand") as mock_cmd:
+    with (
+        patch("cliptube.localqueue.shellCommand") as mock_cmd,
+        patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
+    ):
         mock_cmd.return_value = ("", "")
         processor.queue_urls(videos, vtype="v")
         processor.queue_urls(playlists, vtype="p")

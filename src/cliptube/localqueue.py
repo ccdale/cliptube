@@ -27,7 +27,7 @@ from pathlib import Path
 from queue import Empty, Queue
 
 from cliptube import errorNotify, log
-from cliptube.config import expandPath
+from cliptube.config import expandPath, getYtDlpBin
 from cliptube.shell import shellCommand
 
 
@@ -107,6 +107,7 @@ class URLProcessorWorker(threading.Thread):
         """
         try:
             log.debug(f"Processing {task}")
+            ytdlp_bin = getYtDlpBin()
             if task.vtype == "i":
                 # iplayer processing
                 cmd = ["get_iplayer", "--url", task.url]
@@ -115,10 +116,10 @@ class URLProcessorWorker(threading.Thread):
                 output_template = (
                     "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s"
                 )
-                cmd = ["/home/chris/bin/yt-dlp", "-o", output_template, task.url]
+                cmd = [ytdlp_bin, "-o", output_template, task.url]
             else:
                 # yt-dlp for videos
-                cmd = ["/home/chris/bin/yt-dlp", task.url]
+                cmd = [ytdlp_bin, task.url]
 
             log.info(f"Running command: {' '.join(cmd)}")
             sout, serr = shellCommand(cmd)

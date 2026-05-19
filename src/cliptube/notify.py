@@ -27,7 +27,7 @@ from inotify_simple import INotify, flags, masks
 
 import cliptube.shell as shell
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise, log
-from cliptube.config import expandPath, readConfig
+from cliptube.config import expandPath, getYtDlpBin, readConfig
 from cliptube.files import dirFileList
 
 
@@ -96,10 +96,10 @@ class InotifyThread(threading.Thread):
 
 
 class DirectoryWatcher(InotifyThread):
-    def __init__(
-        self, path, cmd=["/home/chris/bin/yt-dlp", "-a", "<fqfn>"], readfiles=False
-    ):
+    def __init__(self, path, cmd=None, readfiles=False):
         super().__init__(path)
+        if cmd is None:
+            cmd = [getYtDlpBin(), "-a", "<fqfn>"]
         self.__cmd = cmd
         self.readfiles = readfiles
         self.watchdesc = None
@@ -213,9 +213,7 @@ def directoryWatches(testing=None):
             cfg = readConfig()
             videodir = expandPath(f"~/{cfg['mediaserver']['videodir']}")
             iplayerdir = expandPath(f"~/{cfg['mediaserver']['iplayerdir']}")
-            dvw = DirectoryWatcher(
-                videodir, cmd=["/home/chris/bin/yt-dlp", "-a", "<fqfn>"]
-            )
+            dvw = DirectoryWatcher(videodir)
             dvw.start()
             dpw = DirectoryWatcher(
                 iplayerdir, cmd=["get_iplayer", "--url", "<fqfn>"], readfiles=True
