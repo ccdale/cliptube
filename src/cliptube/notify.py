@@ -96,7 +96,9 @@ class InotifyThread(threading.Thread):
 
 
 class DirectoryWatcher(InotifyThread):
-    def __init__(self, path, cmd=["yt-dlp", "-a", "<fqfn>"], readfiles=False):
+    def __init__(
+        self, path, cmd=["/home/chris/bin/yt-dlp", "-a", "<fqfn>"], readfiles=False
+    ):
         super().__init__(path)
         self.__cmd = cmd
         self.readfiles = readfiles
@@ -211,7 +213,9 @@ def directoryWatches(testing=None):
             cfg = readConfig()
             videodir = expandPath(f"~/{cfg['mediaserver']['videodir']}")
             iplayerdir = expandPath(f"~/{cfg['mediaserver']['iplayerdir']}")
-            dvw = DirectoryWatcher(videodir, cmd=["yt-dlp", "-a", "<fqfn>"])
+            dvw = DirectoryWatcher(
+                videodir, cmd=["/home/chris/bin/yt-dlp", "-a", "<fqfn>"]
+            )
             dvw.start()
             dpw = DirectoryWatcher(
                 iplayerdir, cmd=["get_iplayer", "--url", "<fqfn>"], readfiles=True

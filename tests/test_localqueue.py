@@ -156,10 +156,10 @@ def test_processing_task_different_vtypes():
         assert mock_cmd.call_count >= 4
 
         called_cmds = [list(call.args[0]) for call in mock_cmd.call_args_list]
-        assert ["yt-dlp", "https://example.com/v1"] in called_cmds
-        assert ["yt-dlp", "https://example.com/v2"] in called_cmds
+        assert ["/home/chris/bin/yt-dlp", "https://example.com/v1"] in called_cmds
+        assert ["/home/chris/bin/yt-dlp", "https://example.com/v2"] in called_cmds
         assert [
-            "yt-dlp",
+            "/home/chris/bin/yt-dlp",
             "-o",
             "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s",
             "https://example.com/p1",

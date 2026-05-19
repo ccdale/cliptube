@@ -115,10 +115,10 @@ class URLProcessorWorker(threading.Thread):
                 output_template = (
                     "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s"
                 )
-                cmd = ["yt-dlp", "-o", output_template, task.url]
+                cmd = ["/home/chris/bin/yt-dlp", "-o", output_template, task.url]
             else:
                 # yt-dlp for videos
-                cmd = ["yt-dlp", task.url]
+                cmd = ["/home/chris/bin/yt-dlp", task.url]
 
             log.info(f"Running command: {' '.join(cmd)}")
             sout, serr = shellCommand(cmd)

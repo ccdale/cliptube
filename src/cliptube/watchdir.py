@@ -56,7 +56,7 @@ def getVideos(path):
         if path.endswith("iplayer"):
             scmd = ["get_iplayer", "--url"]
         else:
-            scmd = ["yt-dlp"]
+            scmd = ["/home/chris/bin/yt-dlp"]
         files = dirFileList(path, filterext=".err")
         if files is not None:
             for fn in files:
