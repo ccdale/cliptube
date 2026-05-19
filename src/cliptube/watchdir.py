@@ -27,7 +27,7 @@ from threading import Event
 from cliptube import __appname__, __version__, errorExit, errorNotify, errorRaise
 from cliptube.config import expandPath, getYtDlpBin, readConfig
 from cliptube.files import dirFileList
-from cliptube.shell import shellCommand
+from cliptube.shell import getMergerOutputFilename, shellCommand
 
 # log = None
 
@@ -73,6 +73,9 @@ def getVideos(path):
                         cmd.append(lin)
                         print(f"shellCommand: {cmd=}")
                         cout, cerr = shellCommand(cmd)
+                        merger_filename = getMergerOutputFilename(cout, cerr)
+                        if merger_filename is not None:
+                            print(merger_filename)
                         # print(f"{cout=}")
                         # print(f"{cerr=}")
                     except Exception as e:

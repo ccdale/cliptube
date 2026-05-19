@@ -28,7 +28,7 @@ from queue import Empty, Queue
 
 from cliptube import errorNotify, log
 from cliptube.config import expandPath, getYtDlpBin
-from cliptube.shell import shellCommand
+from cliptube.shell import getMergerOutputFilename, getMergerOutputLine, shellCommand
 
 
 def get_cache_path():
@@ -36,6 +36,11 @@ def get_cache_path():
     cache_dir = expandPath("~/.cache/cliptube")
     Path(cache_dir).mkdir(parents=True, exist_ok=True)
     return os.path.join(cache_dir, "pending_queue.json")
+
+
+def get_merger_output_line(stdout, stderr):
+    """Return the last yt-dlp merger line from stdout/stderr, if present."""
+    return getMergerOutputLine(stdout, stderr)
 
 
 class ProcessingTask:
@@ -126,6 +131,9 @@ class URLProcessorWorker(threading.Thread):
             log.debug(f"Command stdout: {sout}")
             if serr:
                 log.warning(f"Command stderr: {serr}")
+            merger_filename = getMergerOutputFilename(sout, serr)
+            if merger_filename is not None:
+                log.info(merger_filename)
             log.info(f"Successfully processed {task.url}")
         except Exception as e:
             log.error(f"Failed to process {task.url}: {e}")

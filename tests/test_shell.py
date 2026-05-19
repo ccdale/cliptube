@@ -21,7 +21,12 @@ from subprocess import CalledProcessError
 
 import pytest
 
-from cliptube.shell import listCmd, shellCommand
+from cliptube.shell import (
+    getMergerOutputFilename,
+    getMergerOutputLine,
+    listCmd,
+    shellCommand,
+)
 
 
 def test_listCmd():
@@ -53,3 +58,14 @@ def test_shellCommand_allow_fail():
     out, err = shellCommand(xstr, canfail=True)
     assert out == ""
     assert err == "ls: cannot access '/wibble': No such file or directory\n"
+
+
+def test_getMergerOutputLine_last_match():
+    stdout = "line 1\n[Merger] First output\nline 3"
+    stderr = "noise\n[Merger] Final output"
+    assert getMergerOutputLine(stdout, stderr) == "[Merger] Final output"
+
+
+def test_getMergerOutputFilename_basename_only():
+    stderr = '[Merger] Merging formats into "/mnt/nas/youtube/videos/myvideo.mkv"'
+    assert getMergerOutputFilename("", stderr) == "myvideo.mkv"

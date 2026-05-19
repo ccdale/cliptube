@@ -19,6 +19,8 @@
 
 """subprocess commands to send via a shell."""
 
+import os
+import re
 import subprocess
 import sys
 from subprocess import CalledProcessError
@@ -70,3 +72,31 @@ def shellCommand(cmd, canfail=False):
         msg += f"\nCommand was:\n{' '.join(cmd)}"
         print(msg)
         errorRaise(sys.exc_info()[2], e)
+
+
+def getMergerOutputLine(stdout, stderr):
+    """Return the last yt-dlp merger line from stdout/stderr, if present."""
+    merger_lines = []
+    for stream in [stdout, stderr]:
+        if stream is None:
+            continue
+        for line in str(stream).splitlines():
+            stripped = line.strip()
+            if stripped.startswith("[Merger]"):
+                merger_lines.append(stripped)
+    return merger_lines[-1] if merger_lines else None
+
+
+def getMergerOutputFilename(stdout, stderr):
+    """Return merged output filename basename from yt-dlp output, if present."""
+    merger_line = getMergerOutputLine(stdout, stderr)
+    if merger_line is None:
+        return None
+
+    # yt-dlp merger output includes the target path in quotes.
+    match = re.search(r'"([^"]+)"', merger_line)
+    if match is None:
+        match = re.search(r"'([^']+)'", merger_line)
+    if match is None:
+        return None
+    return os.path.basename(match.group(1))

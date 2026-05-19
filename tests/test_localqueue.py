@@ -23,7 +23,11 @@ import json
 from unittest.mock import patch
 
 import cliptube.localqueue as localqueue
-from cliptube.localqueue import LocalQueueProcessor, ProcessingTask
+from cliptube.localqueue import (
+    LocalQueueProcessor,
+    ProcessingTask,
+    get_merger_output_line,
+)
 
 
 def test_ProcessingTask():
@@ -205,6 +209,33 @@ def test_queue_length_logs_empty_once_per_drain_cycle():
             if call.args and call.args[0].startswith("Queue length:")
         ]
         assert queue_logs == ["Queue length: 0"]
+
+    processor.shutdown(timeout=2)
+
+
+def test_get_merger_output_line_prefers_last_match():
+    stdout = "line 1\n[Merger] First output\nline 3"
+    stderr = "noise\n[Merger] Final output"
+    assert get_merger_output_line(stdout, stderr) == "[Merger] Final output"
+
+
+def test_successful_ytdlp_logs_merger_line():
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
+
+    with (
+        patch("cliptube.localqueue.shellCommand") as mock_cmd,
+        patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
+        patch("cliptube.localqueue.log.info") as mock_log_info,
+    ):
+        mock_cmd.return_value = (
+            "",
+            '[download] 100%\n[Merger] Merging formats into "/mnt/nas/youtube/videos/myvideo.mkv"',
+        )
+        processor.queue_urls(["https://example.com/v1"], vtype="v")
+        processor.task_queue.join()
+
+        info_messages = [call.args[0] for call in mock_log_info.call_args_list]
+        assert "myvideo.mkv" in info_messages
 
     processor.shutdown(timeout=2)
 

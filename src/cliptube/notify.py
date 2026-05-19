@@ -153,6 +153,9 @@ class DirectoryWatcher(InotifyThread):
                         try:
                             print(f"shellCommand: {scmd=}")
                             sout, serr = shell.shellCommand(scmd)
+                            merger_filename = shell.getMergerOutputFilename(sout, serr)
+                            if merger_filename is not None:
+                                print(merger_filename)
                             print(f"{sout=}")
                             print(f"{serr=}")
                             print(f"deleting incoming file {fqfn}")
@@ -187,6 +190,9 @@ class DirectoryWatcher(InotifyThread):
             try:
                 print(f"shellCommand: {scmd=}")
                 sout, serr = shell.shellCommand(scmd)
+                merger_filename = shell.getMergerOutputFilename(sout, serr)
+                if merger_filename is not None:
+                    print(merger_filename)
                 print(f"{sout=}")
                 print(f"{serr=}")
             except Exception as e:
