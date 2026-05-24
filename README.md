@@ -2,6 +2,10 @@
 
 cliptube watches your clipboard history for media links, then queues downloads locally.
 
+Legacy/removed workflow reference (pre-cleanup snapshot):
+
+- https://github.com/ccdale/cliptube/tree/3d21d05da03d79f84a2bfb7ce99ba8d3698ac8a5
+
 Current support:
 
 - YouTube videos
@@ -12,8 +16,6 @@ The project includes:
 
 - A clipboard watcher service (`cliptube`) that discovers new URLs.
 - A local queue worker that processes downloads sequentially and can recover pending work after restart.
-- A directory watcher service (`dirwatch`) for `.err` URL files dropped into watched media directories.
-- An orphan subtitle cleanup tool (`orphans`).
 
 ## How It Works
 
@@ -24,8 +26,7 @@ The project includes:
 	- `yt-dlp` for video URLs
 	- `yt-dlp -o /mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s` for playlists
 	- `iplayer.download(...)` for BBC iPlayer URLs
-5. `dirwatch` processing is separate: it watches media directories for `.err` files and shells out to `yt-dlp` or `get_iplayer` depending on target path.
-6. If cliptube is interrupted, pending tasks are saved to `~/.cache/cliptube/pending_queue.json` and restored on next startup.
+5. If cliptube is interrupted, pending tasks are saved to `~/.cache/cliptube/pending_queue.json` and restored on next startup.
 
 ## Requirements
 
@@ -73,32 +74,26 @@ Important keys:
 - `[mediaserver].ytdlpbin`: path to `yt-dlp` binary
 - `[gnomeclipindicator].histfile`: clipboard history JSON file to read
 - `[gnomeclipindicator].sleeptime`: poll interval for clipboard checks
-- `[mediaserver].videodir`, `[mediaserver].playlistdir`, `[mediaserver].iplayerdir`: directories used by `dirwatch`
 
 ## Run Commands
 
 Installed entry points:
 
-- `cliptube` - clipboard watcher
-- `dirwatch` - directory watcher for incoming URL files
-- `orphans` - remove subtitle-only orphan file sets in configured incoming subtitles directory
+- `cliptube` - clipboard watcher and local queue processor
 
 Run directly with uv:
 
 ```bash
 uv run cliptube
-uv run dirwatch
-uv run orphans
 ```
 
-Note: `cliptube` (clipboard path) uses the standalone `iplayer` Python module for BBC iPlayer URLs. `dirwatch` currently still shells out to `get_iplayer` for iPlayer directory processing.
+Note: `cliptube` uses the standalone `iplayer` Python module for BBC iPlayer URLs.
 
 ## Systemd User Services
 
 Helper scripts are included:
 
 - `scripts/install-cliptube.sh`
-- `scripts/install-dirwatch.sh`
 
 These scripts:
 
@@ -109,7 +104,6 @@ These scripts:
 Service templates are in:
 
 - `configs/cliptube.service`
-- `configs/dirwatch.service`
 
 ## URL Detection Rules (Current)
 
