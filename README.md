@@ -25,7 +25,7 @@ The project includes:
 	- `yt-dlp -o /mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s` for playlists
 	- `iplayer.download(...)` for BBC iPlayer URLs
 5. `dirwatch` processing is separate: it watches media directories for `.err` files and shells out to `yt-dlp` or `get_iplayer` depending on target path.
-5. If cliptube is interrupted, pending tasks are saved to `~/.cache/cliptube/pending_queue.json` and restored on next startup.
+6. If cliptube is interrupted, pending tasks are saved to `~/.cache/cliptube/pending_queue.json` and restored on next startup.
 
 ## Requirements
 
