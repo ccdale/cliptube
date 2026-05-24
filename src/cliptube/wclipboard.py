@@ -34,12 +34,11 @@ class onlyOne(Exception):
 
 def interruptWP(signrcvd, frame):
     try:
-        global ev
         msg = f"Interrupt {signrcvd} received in wclipboard module - exiting."
         log.info(msg)
         ev.set()
         # sys.exit(255)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorNotify(sys.exc_info()[2], e)
 
 
@@ -55,7 +54,7 @@ def checkForNewUrls():
         if len(urls):
             log.debug(f"watchclipboard: {len(urls)} new urls found")
             processNewUrls(urls)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorNotify(sys.exc_info()[2], e)
 
 
@@ -71,7 +70,7 @@ def watchparcellite():
         log.info("Final check for urls before shutting down")
         checkForNewUrls()
         log.info(f"{__appname__} closing down, bye.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorNotify(sys.exc_info()[2], e)
 
 
@@ -87,7 +86,7 @@ def watchCopyQ():
         log.info("Final check for urls before shutting down")
         checkForNewUrls()
         log.info(f"{__appname__} closing down, bye.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorNotify(sys.exc_info()[2], e)
 
 
@@ -113,15 +112,15 @@ def watchGnomeClipboard():
         if os.path.exists(pidfn):
             try:
                 os.unlink(pidfn)
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 log.error(f"Error deleting pid file: {e}")
         log.info(f"{__appname__} closing down, bye.")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         # Ensure processor shutdown even on error
         if processor:
             try:
                 processor.shutdown(timeout=5, wait_for_current=False)
-            except Exception as shutdown_err:
+            except Exception as shutdown_err:  # noqa: BLE001
                 log.error(f"Error during processor shutdown: {shutdown_err}")
         errorExit(sys.exc_info()[2], e)
 
@@ -139,7 +138,7 @@ def sortUrls(urls):
                 iplayer.append(url)
         videos.extend([x for x in urls if x not in plists and x not in iplayer])
         return plists, iplayer, videos
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorRaise(sys.exc_info()[2], e)
 
 
@@ -148,7 +147,7 @@ def processVideoUrls(videos):
         log.debug(f"queueing {len(videos)} video urls for local processing.")
         localqueue.queue_urls(videos, vtype="v")
         log.info(f"queued {len(videos)} video urls for processing")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorRaise(sys.exc_info()[2], e)
 
 
@@ -157,7 +156,7 @@ def processPlaylistUrls(videos):
         log.debug(f"queueing {len(videos)} playlist urls for local processing.")
         localqueue.queue_urls(videos, vtype="p")
         log.info(f"queued {len(videos)} playlist urls for processing")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorRaise(sys.exc_info()[2], e)
 
 
@@ -166,7 +165,7 @@ def processIPlayerUrls(videos):
         log.debug(f"queueing {len(videos)} iplayer urls for local processing.")
         localqueue.queue_urls(videos, vtype="i")
         log.info(f"queued {len(videos)} iplayer urls for processing")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorRaise(sys.exc_info()[2], e)
 
 
@@ -179,7 +178,7 @@ def processNewUrls(urls):
             processPlaylistUrls(plists)
         if len(iplayer):
             processIPlayerUrls(iplayer)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorNotify(sys.exc_info()[2], e)
 
 
@@ -195,7 +194,7 @@ def oneOnly(pidfn):
         with open(pidfn, "r") as ifn:
             pidn = ifn.read()
             log.info(f"running pid, read from pid file is {pidn}")
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorExit(sys.exc_info()[2], e)
 
 
@@ -203,14 +202,13 @@ def checkPid(pidfn):
     """checks that the pid in file pidfn is still running, pidfn should exist"""
     try:
         with open(pidfn, "r") as ifn:
-            pidn = ifn.read()
+            pidn = ifn.read().strip()
             try:
                 os.kill(int(pidn), 0)
                 return int(pidn)
             except OSError:
                 log.info(f"previous pid {pidn} not running")
                 return False
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         errorRaise(sys.exc_info()[2], e)
-    finally:
-        return False
+    return False
