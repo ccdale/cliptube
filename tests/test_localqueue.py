@@ -318,7 +318,8 @@ def test_cache_save_and_load(monkeypatch, tmp_path):
     monkeypatch.setattr("cliptube.localqueue.get_cache_path", mock_cache_path)
 
     # Create processor and queue some items
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
+    # Use zero workers so queue state is deterministic for cache-save assertions.
+    processor = LocalQueueProcessor(num_workers=0, restore_from_cache=False)
     urls = [f"https://example.com/video{i}" for i in range(3)]
     processor.queue_urls(urls, vtype="v")
 
