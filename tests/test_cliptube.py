@@ -30,14 +30,12 @@ class TheException(Exception):
         Exception:
     """
 
-    pass
-
 
 def test_errorNotify(caplog):
     try:
         msg = "This is the test exception"
         raise TheException(msg)
-    except Exception as e:
+    except TheException as e:
         exci = sys.exc_info()[2]
         lineno = exci.tb_lineno
         fname = exci.tb_frame.f_code.co_name
@@ -54,7 +52,7 @@ def test_errorRaise(caplog):
     try:
         msg = "This is the test exception"
         raise TheException(msg)
-    except Exception as e:
+    except TheException as e:
         exci = sys.exc_info()[2]
         lineno = exci.tb_lineno
         fname = exci.tb_frame.f_code.co_name
@@ -73,7 +71,7 @@ def test_errorExit(caplog):
     try:
         msg = "This is the test exception"
         raise TheException(msg)
-    except Exception as e:
+    except TheException as e:
         exci = sys.exc_info()[2]
         lineno = exci.tb_lineno
         fname = exci.tb_frame.f_code.co_name

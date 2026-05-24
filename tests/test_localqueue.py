@@ -25,7 +25,7 @@ from unittest.mock import patch
 
 import pytest
 
-import cliptube.localqueue as localqueue
+from cliptube import localqueue
 from cliptube.localqueue import (
     LocalQueueProcessor,
     ProcessingTask,

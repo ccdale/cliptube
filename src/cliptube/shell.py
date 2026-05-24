@@ -28,19 +28,19 @@ from subprocess import CalledProcessError
 from cliptube import errorRaise
 
 
+class InvalidCommandType(TypeError):
+    """Raised when a shell command is not a string or a list."""
+
+
 def listCmd(cmd):
     """ensures the passed in command is a list not a string."""
-    try:
-        if type(cmd) is not list:
-            if type(cmd) is not str:
-                raise Exception(
-                    f"cmd should be list or string, you gave {type(cmd)} {cmd}"
-                )
-            else:
-                cmd = cmd.strip().split(" ")
+    if isinstance(cmd, list):
         return cmd
-    except Exception as e:
-        errorRaise(sys.exc_info()[2], e)
+    if isinstance(cmd, str):
+        return cmd.strip().split(" ")
+    raise InvalidCommandType(
+        f"cmd should be list or string, you gave {type(cmd)} {cmd}"
+    )
 
 
 def shellCommand(cmd, canfail=False):
@@ -53,7 +53,7 @@ def shellCommand(cmd, canfail=False):
     try:
         cmd = listCmd(cmd)
         # print(" ".join(cmd))
-        ret = subprocess.run(cmd, capture_output=True, text=True)
+        ret = subprocess.run(cmd, capture_output=True, check=False, text=True)
         if not canfail:
             # raise an exception if cmd returns an error code
             ret.check_returncode()
@@ -65,7 +65,7 @@ def shellCommand(cmd, canfail=False):
         msg += f"\nCommand was:\n{' '.join(cmd)}"
         print(msg)
         errorRaise(sys.exc_info()[2], e)
-    except Exception as e:
+    except (InvalidCommandType, OSError, TypeError, ValueError) as e:
         stderr = ret.stderr if ret else "N/A"
         stdout = ret.stdout if ret else "N/A"
         msg = f"ERROR: {stderr}\nstdout: {stdout}"

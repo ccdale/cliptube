@@ -13,7 +13,7 @@ def twodigits(val):
         ival = int(val)
         sval = str(ival)
         return f"{sval:0>2}"
-    except Exception as e:
+    except ValueError as e:
         errorNotify(sys.exc_info()[2], e)
 
 

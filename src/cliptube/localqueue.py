@@ -21,6 +21,7 @@
 
 import json
 import os
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -89,21 +90,15 @@ class URLProcessorWorker(threading.Thread):
 
     def run(self):
         """Process tasks from the queue until stopped."""
-        try:
-            while self.running:
-                try:
-                    task = self.task_queue.get(timeout=1)
-                    if task is None:  # Sentinel value for shutdown
-                        break
-                    self._process_task(task)
-                except Empty:
-                    # Queue timeout is expected - just continue waiting
-                    continue
-                except Exception as e:
-                    if self.running:
-                        errorNotify(sys.exc_info()[2], e)
-        except Exception as e:
-            errorNotify(sys.exc_info()[2], e)
+        while self.running:
+            try:
+                task = self.task_queue.get(timeout=1)
+                if task is None:  # Sentinel value for shutdown
+                    break
+                self._process_task(task)
+            except Empty:
+                # Queue timeout is expected - just continue waiting
+                continue
 
     def _process_task(self, task):
         """
@@ -141,7 +136,15 @@ class URLProcessorWorker(threading.Thread):
             if merger_filename is not None:
                 log.info(merger_filename)
             log.info(f"Successfully processed {task.url}")
-        except Exception as e:
+        except (
+            OSError,
+            RuntimeError,
+            TypeError,
+            ValueError,
+            KeyError,
+            subprocess.CalledProcessError,
+            iplayer.IPlayerUrlError,
+        ) as e:
             log.error(f"Failed to process {task.url}: {e}")
             errorNotify(sys.exc_info()[2], e)
         finally:
@@ -211,7 +214,13 @@ class LocalQueueProcessor:
                     count += 1
                 log.info(f"Restored {count} tasks from cache: {self.cache_path}")
                 os.remove(self.cache_path)
-            except Exception as e:
+            except (
+                json.JSONDecodeError,
+                OSError,
+                TypeError,
+                ValueError,
+                KeyError,
+            ) as e:
                 log.error(f"Failed to restore tasks from cache: {e}")
                 errorNotify(sys.exc_info()[2], e)
 
@@ -225,7 +234,7 @@ class LocalQueueProcessor:
                     task = self.task_queue.get_nowait()
                     if task is not None:  # Skip sentinel values
                         tasks.append(task.to_dict())
-                except Exception:
+                except Empty:
                     break
 
             if tasks:
@@ -236,7 +245,7 @@ class LocalQueueProcessor:
                 # Clean up empty cache file if it exists
                 if os.path.exists(self.cache_path):
                     os.remove(self.cache_path)
-        except Exception as e:
+        except (OSError, TypeError, ValueError) as e:
             log.error(f"Failed to save tasks to cache: {e}")
             errorNotify(sys.exc_info()[2], e)
 
@@ -324,7 +333,6 @@ def queue_urls(urls, vtype="v"):
     Raises:
         RuntimeError: If processor not initialized
     """
-    global _processor
     if _processor is None:
         raise RuntimeError("Processor not initialized. Call initialize() first.")
     _processor.queue_urls(urls, vtype=vtype)

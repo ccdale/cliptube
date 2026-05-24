@@ -13,7 +13,7 @@ wheels = [
 
 [[package]]
 name = "cliptube"
-version = "2.0.34"
+version = "2.0.35"
 source = { editable = "." }
 dependencies = [
     { name = "ccalogging" },

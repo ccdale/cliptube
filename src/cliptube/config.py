@@ -34,10 +34,7 @@ class ConfigFileNotFound(Exception):
 
 
 def expandPath(path):
-    try:
-        return os.path.abspath(os.path.expanduser(path))
-    except Exception as e:
-        errorRaise(sys.exc_info()[2], e)
+    return os.path.abspath(os.path.expanduser(path))
 
 
 def readConfig(overrideappname=None):
@@ -50,7 +47,7 @@ def readConfig(overrideappname=None):
         config = configparser.ConfigParser()
         config.read(cfgpath)
         return config
-    except Exception as e:
+    except (ConfigFileNotFound, OSError, configparser.Error) as e:
         errorRaise(sys.exc_info()[2], e)
 
 
@@ -59,7 +56,7 @@ def getYtDlpBin(cfg=None):
         if cfg is None:
             cfg = readConfig()
         return expandPath(cfg["mediaserver"].get("ytdlpbin") or DEFAULT_YTDLP_BIN)
-    except Exception as e:
+    except (AttributeError, KeyError, OSError, TypeError) as e:
         errorRaise(sys.exc_info()[2], e)
 
 
@@ -68,5 +65,5 @@ def writeConfig(cfg):
         absfn = expandPath(f"~/.config/{__appname__}.cfg")
         with open(absfn, "w") as ofn:
             cfg.write(ofn)
-    except Exception as e:
+    except OSError as e:
         errorRaise(sys.exc_info()[2], e)

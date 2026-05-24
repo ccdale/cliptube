@@ -9,7 +9,6 @@ from cliptube import (
     __appname__,
     __version__,
     errorExit,
-    errorNotify,
     localqueue,
     log,
 )

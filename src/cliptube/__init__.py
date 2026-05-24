@@ -42,7 +42,7 @@ def gitroot() -> str:
             .splitlines()
             .pop()
         )
-    except Exception as e:
+    except (subprocess.CalledProcessError, OSError) as e:
         errorExit(sys.exc_info()[2], e)
         return ""
 
@@ -63,7 +63,7 @@ def getVersion() -> str:
         with open(pyproject_path, "rb") as f:
             pyproject_data = tomllib.load(f)
         return pyproject_data.get("project", {}).get("version", "0.0.0")
-    except Exception as e:
+    except (OSError, tomllib.TOMLDecodeError) as e:
         errorExit(sys.exc_info()[2], e)
         return "0.0.0"
 

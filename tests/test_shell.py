@@ -43,14 +43,14 @@ def test_listCmd_withList():
 
 def test_shellCommand():
     xstr = "ls /home/chris/"
-    out, err = shellCommand(xstr)
+    out, _err = shellCommand(xstr)
     assert "Downloads" in out
 
 
 def test_shellCommand_fail():
     xstr = "ls /wibble"
     with pytest.raises(CalledProcessError):
-        out, err = shellCommand(xstr)
+        _out, _err = shellCommand(xstr)
 
 
 def test_shellCommand_allow_fail():
