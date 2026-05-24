@@ -1,6 +1,6 @@
 [project]
 name = "cliptube"
-version = "2.0.18"
+version = "2.0.20"
 description = "tool to download youtube videos from the clipboard."
 authors = [{ name = "ccdale", email = "chris.charles.allison+cliptube@gmail.com" }]
 requires-python = ">=3.11,<4"
@@ -16,7 +16,11 @@ dependencies = [
     "ccalogging",
     "fabric",
     "inotify-simple>=1.3.5,<2",
+    "iplayer",
 ]
+
+[tool.uv.sources]
+iplayer = { path = "../iplayer" }
 
 [project.scripts]
 orphans = "cliptube.orphans:findOrphans"

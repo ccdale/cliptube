@@ -26,6 +26,8 @@ import threading
 from pathlib import Path
 from queue import Empty, Queue
 
+import iplayer
+
 from cliptube import errorNotify, log
 from cliptube.config import expandPath, getYtDlpBin
 from cliptube.shell import getMergerOutputFilename, getMergerOutputLine, shellCommand
@@ -114,20 +116,24 @@ class URLProcessorWorker(threading.Thread):
             log.debug(f"Processing {task}")
             ytdlp_bin = getYtDlpBin()
             if task.vtype == "i":
-                # iplayer processing
-                cmd = ["get_iplayer", "--url", task.url]
+                # BBC iPlayer processing uses the standalone iplayer module.
+                completed = iplayer.download(task.url)
+                cmd = completed.args
+                sout = completed.stdout
+                serr = completed.stderr
             elif task.vtype == "p":
                 # yt-dlp for playlists, organized by playlist name
                 output_template = (
                     "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s"
                 )
                 cmd = [ytdlp_bin, "-o", output_template, task.url]
+                sout, serr = shellCommand(cmd)
             else:
                 # yt-dlp for videos
                 cmd = [ytdlp_bin, task.url]
+                sout, serr = shellCommand(cmd)
 
             log.info(f"Running command: {' '.join(cmd)}")
-            sout, serr = shellCommand(cmd)
             log.debug(f"Command stdout: {sout}")
             if serr:
                 log.warning(f"Command stderr: {serr}")

@@ -20,6 +20,7 @@
 """Tests for the localqueue module."""
 
 import json
+import subprocess
 from unittest.mock import patch
 
 import pytest
@@ -153,23 +154,31 @@ def test_processing_task_different_vtypes():
     """Test command selection by vtype with correct output handling."""
     videos = ["https://example.com/v1", "https://example.com/v2"]
     playlists = ["https://example.com/p1"]
-    iplayer = ["https://example.com/i1"]
+    iplayer = ["https://www.bbc.co.uk/iplayer/episode/b0123456/example"]
 
     processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
 
     with (
         patch("cliptube.localqueue.shellCommand") as mock_cmd,
         patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
+        patch("cliptube.localqueue.iplayer.download") as mock_download,
     ):
         mock_cmd.return_value = ("", "")
+        mock_download.return_value = subprocess.CompletedProcess(
+            args=["get_iplayer", "--url", "https://www.bbc.co.uk/programmes/b0123456"],
+            returncode=0,
+            stdout="",
+            stderr="",
+        )
         processor.queue_urls(videos, vtype="v")
         processor.queue_urls(playlists, vtype="p")
         processor.queue_urls(iplayer, vtype="i")
 
         processor.task_queue.join()
 
-        # Should have been called once per URL
-        assert mock_cmd.call_count >= 4
+        # yt-dlp still handles the two videos and the playlist.
+        assert mock_cmd.call_count >= 3
+        assert mock_download.call_count == 1
 
         called_cmds = [list(call.args[0]) for call in mock_cmd.call_args_list]
         assert ["/home/chris/bin/yt-dlp", "https://example.com/v1"] in called_cmds
@@ -180,7 +189,7 @@ def test_processing_task_different_vtypes():
             "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s",
             "https://example.com/p1",
         ] in called_cmds
-        assert ["get_iplayer", "--url", "https://example.com/i1"] in called_cmds
+        assert mock_download.call_args.args[0] == iplayer[0]
 
     processor.shutdown(timeout=2)
 
