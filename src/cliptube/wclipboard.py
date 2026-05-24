@@ -33,13 +33,7 @@ class onlyOne(Exception):
 
 
 def interruptWP(signrcvd, frame):
-    try:
-        msg = f"Interrupt {signrcvd} received in wclipboard module - exiting."
-        log.info(msg)
-        ev.set()
-        # sys.exit(255)
-    except Exception as e:  # noqa: BLE001
-        errorNotify(sys.exc_info()[2], e)
+    ev.set()
 
 
 # if we get a `ctrl-c` from the keyboard, stop immediately
@@ -200,15 +194,12 @@ def oneOnly(pidfn):
 
 def checkPid(pidfn):
     """checks that the pid in file pidfn is still running, pidfn should exist"""
+    with open(pidfn, "r") as ifn:
+        pidn = ifn.read().strip()
+    ipid = int(pidn)
     try:
-        with open(pidfn, "r") as ifn:
-            pidn = ifn.read().strip()
-            try:
-                os.kill(int(pidn), 0)
-                return int(pidn)
-            except OSError:
-                log.info(f"previous pid {pidn} not running")
-                return False
-    except Exception as e:  # noqa: BLE001
-        errorRaise(sys.exc_info()[2], e)
-    return False
+        os.kill(ipid, 0)
+        return ipid
+    except OSError:
+        log.info(f"previous pid {pidn} not running")
+        return None
