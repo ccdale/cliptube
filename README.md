@@ -1,9 +1,131 @@
 # cliptube
 
-Tool to download youtube videos from the clipboard.
+cliptube watches your clipboard history for media links, then queues downloads locally.
 
-Watches the clipboard with [pyclip](https://pypi.org/project/pyclip/) for
-youtube type video URLs.
+Current support:
 
-Uses the excellent [yt-dlp project](https://github.com/yt-dlp/yt-dlp) to
-download the videos.
+- YouTube videos
+- YouTube playlists
+- BBC iPlayer episode links (via the standalone iPlayer module)
+
+The project includes:
+
+- A clipboard watcher service (`cliptube`) that discovers new URLs.
+- A local queue worker that processes downloads sequentially and can recover pending work after restart.
+- A directory watcher service (`dirwatch`) for `.err` URL files dropped into watched media directories.
+- An orphan subtitle cleanup tool (`orphans`).
+
+## How It Works
+
+1. `cliptube` reads clipboard history from GNOME Clipboard Indicator JSON history.
+2. New URLs are classified as video, playlist, or iPlayer.
+3. URLs are queued into a local worker.
+4. The worker runs:
+	- `yt-dlp` for video URLs
+	- `yt-dlp -o /mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s` for playlists
+	- `iplayer.download(...)` for BBC iPlayer URLs
+5. If cliptube is interrupted, pending tasks are saved to `~/.cache/cliptube/pending_queue.json` and restored on next startup.
+
+## Requirements
+
+- Python 3.11+
+- `uv` (for dependency and run workflow)
+- A working `yt-dlp` binary
+- Access to the standalone iPlayer module repository at `../iplayer` when developing from source
+- For clipboard watching: GNOME Clipboard Indicator history file at the configured path
+
+## Install For Development
+
+From this repository root:
+
+```bash
+uv sync
+```
+
+This project uses a local source dependency for iPlayer:
+
+```toml
+[tool.uv.sources]
+iplayer = { path = "../iplayer" }
+```
+
+So the sibling repository is expected at:
+
+```text
+/home/chris/src/iplayer
+```
+
+## Configuration
+
+cliptube reads config from:
+
+```text
+~/.config/cliptube.cfg
+```
+
+If this file does not exist, runtime will fail with a config-not-found error.
+
+A sample config is provided in `configs/cliptube.cfg`.
+
+Important keys:
+
+- `[mediaserver].ytdlpbin`: path to `yt-dlp` binary
+- `[gnomeclipindicator].histfile`: clipboard history JSON file to read
+- `[gnomeclipindicator].sleeptime`: poll interval for clipboard checks
+- `[mediaserver].videodir`, `[mediaserver].playlistdir`, `[mediaserver].iplayerdir`: directories used by `dirwatch`
+
+## Run Commands
+
+Installed entry points:
+
+- `cliptube` - clipboard watcher
+- `dirwatch` - directory watcher for incoming URL files
+- `orphans` - remove subtitle-only orphan file sets in configured incoming subtitles directory
+
+Run directly with uv:
+
+```bash
+uv run cliptube
+uv run dirwatch
+uv run orphans
+```
+
+## Systemd User Services
+
+Helper scripts are included:
+
+- `scripts/install-cliptube.sh`
+- `scripts/install-dirwatch.sh`
+
+These scripts:
+
+- copy service files to `~/.config/systemd/user`
+- enable the relevant user service
+- start the service immediately
+
+Service templates are in:
+
+- `configs/cliptube.service`
+- `configs/dirwatch.service`
+
+## URL Detection Rules (Current)
+
+The clipboard scanner currently accepts:
+
+- `youtube.com/watch?...`
+- `youtu.be/...`
+- `youtube.com/shorts/...`
+- `youtube.com/playlist?...`
+- `bbc.co.uk/iplayer/...`
+
+## Testing And Linting
+
+```bash
+uv run ruff check .
+uv run pytest
+```
+
+## Notes
+
+- Playlist output path is currently hard-coded in the queue worker.
+- `cliptube` enforces a single running instance using `/tmp/cliptube.pid`.
