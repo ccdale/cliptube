@@ -110,6 +110,11 @@ def watchGnomeClipboard():
                 log.error(f"Error deleting pid file: {e}")
         log.info(f"{__appname__} closing down, bye.")
     except Exception as e:  # noqa: BLE001
+        if os.path.exists(pidfn):
+            try:
+                os.unlink(pidfn)
+            except Exception as cleanup_err:  # noqa: BLE001
+                log.error(f"Error deleting pid file during exception handling: {cleanup_err}")
         # Ensure processor shutdown even on error
         if processor:
             try:
