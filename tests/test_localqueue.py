@@ -194,6 +194,55 @@ def test_processing_task_different_vtypes():
     processor.shutdown(timeout=2)
 
 
+def test_processing_task_iplayer_invalid_url():
+    """Test that invalid BBC URLs are routed through the iPlayer error path."""
+    url = "https://example.com/not-bbc"
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
+
+    with (
+        patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
+        patch("cliptube.localqueue.shellCommand") as mock_cmd,
+        patch(
+            "cliptube.localqueue.iplayer.download",
+            side_effect=localqueue.iplayer.IPlayerUrlError("Not a BBC URL"),
+        ) as mock_download,
+    ):
+        processor.queue_urls([url], vtype="i")
+        processor.task_queue.join()
+
+        mock_download.assert_called_once_with(url)
+        mock_cmd.assert_not_called()
+
+    processor.shutdown(timeout=2)
+
+
+def test_processing_task_iplayer_download_failure():
+    """Test that iPlayer download failures are handled without yt-dlp involvement."""
+    url = "https://www.bbc.co.uk/iplayer/episode/b0123456/example"
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
+
+    with (
+        patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
+        patch("cliptube.localqueue.shellCommand") as mock_cmd,
+        patch(
+            "cliptube.localqueue.iplayer.download",
+            side_effect=subprocess.CalledProcessError(
+                returncode=1,
+                cmd=["get_iplayer", "--url", url],
+                output="",
+                stderr="failed",
+            ),
+        ) as mock_download,
+    ):
+        processor.queue_urls([url], vtype="i")
+        processor.task_queue.join()
+
+        mock_download.assert_called_once_with(url)
+        mock_cmd.assert_not_called()
+
+    processor.shutdown(timeout=2)
+
+
 def test_queue_length_logs_empty_once_per_drain_cycle():
     """Test queue length logging suppresses repeated empty queue messages."""
     processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
