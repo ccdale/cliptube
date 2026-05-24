@@ -20,7 +20,7 @@ The project includes:
 1. `cliptube` reads clipboard history from GNOME Clipboard Indicator JSON history.
 2. New URLs are classified as video, playlist, or iPlayer.
 3. URLs are queued into a local worker.
-4. The worker runs:
+4. The clipboard queue worker runs:
 	- `yt-dlp` for video URLs
 	- `yt-dlp -o /mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s` for playlists
 	- `iplayer.download(...)` for BBC iPlayer URLs
@@ -89,6 +89,8 @@ uv run cliptube
 uv run dirwatch
 uv run orphans
 ```
+
+Note: `cliptube` (clipboard path) uses the standalone `iplayer` Python module for BBC iPlayer URLs. `dirwatch` currently still shells out to `get_iplayer` for iPlayer directory processing.
 
 ## Systemd User Services
 
