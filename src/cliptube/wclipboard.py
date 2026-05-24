@@ -10,7 +10,6 @@ from cliptube import (
     __version__,
     errorExit,
     errorNotify,
-    errorRaise,
     localqueue,
     log,
 )
@@ -43,13 +42,10 @@ signal(SIGTERM, interruptWP)
 
 
 def checkForNewUrls():
-    try:
-        urls = getNewUrls()
-        if len(urls):
-            log.debug(f"watchclipboard: {len(urls)} new urls found")
-            processNewUrls(urls)
-    except Exception as e:  # noqa: BLE001
-        errorNotify(sys.exc_info()[2], e)
+    urls = getNewUrls()
+    if len(urls):
+        log.debug(f"watchclipboard: {len(urls)} new urls found")
+        processNewUrls(urls)
 
 
 def watchparcellite():
@@ -106,15 +102,17 @@ def watchGnomeClipboard():
         if os.path.exists(pidfn):
             try:
                 os.unlink(pidfn)
-            except Exception as e:  # noqa: BLE001
+            except OSError as e:
                 log.error(f"Error deleting pid file: {e}")
         log.info(f"{__appname__} closing down, bye.")
     except Exception as e:  # noqa: BLE001
         if os.path.exists(pidfn):
             try:
                 os.unlink(pidfn)
-            except Exception as cleanup_err:  # noqa: BLE001
-                log.error(f"Error deleting pid file during exception handling: {cleanup_err}")
+            except OSError as cleanup_err:
+                log.error(
+                    f"Error deleting pid file during exception handling: {cleanup_err}"
+                )
         # Ensure processor shutdown even on error
         if processor:
             try:
@@ -125,76 +123,58 @@ def watchGnomeClipboard():
 
 
 def sortUrls(urls):
-    try:
-        plists = []
-        iplayer = []
-        videos = []
-        for url in urls:
-            if "playlist" in url:
-                log.debug(f"playlist url found: {url}")
-                plists.append(url)
-            elif "iplayer" in url:
-                iplayer.append(url)
-        videos.extend([x for x in urls if x not in plists and x not in iplayer])
-        return plists, iplayer, videos
-    except Exception as e:  # noqa: BLE001
-        errorRaise(sys.exc_info()[2], e)
+    plists = []
+    iplayer = []
+    videos = []
+    for url in urls:
+        if "playlist" in url:
+            log.debug(f"playlist url found: {url}")
+            plists.append(url)
+        elif "iplayer" in url:
+            iplayer.append(url)
+    videos.extend([x for x in urls if x not in plists and x not in iplayer])
+    return plists, iplayer, videos
 
 
 def processVideoUrls(videos):
-    try:
-        log.debug(f"queueing {len(videos)} video urls for local processing.")
-        localqueue.queue_urls(videos, vtype="v")
-        log.info(f"queued {len(videos)} video urls for processing")
-    except Exception as e:  # noqa: BLE001
-        errorRaise(sys.exc_info()[2], e)
+    log.debug(f"queueing {len(videos)} video urls for local processing.")
+    localqueue.queue_urls(videos, vtype="v")
+    log.info(f"queued {len(videos)} video urls for processing")
 
 
 def processPlaylistUrls(videos):
-    try:
-        log.debug(f"queueing {len(videos)} playlist urls for local processing.")
-        localqueue.queue_urls(videos, vtype="p")
-        log.info(f"queued {len(videos)} playlist urls for processing")
-    except Exception as e:  # noqa: BLE001
-        errorRaise(sys.exc_info()[2], e)
+    log.debug(f"queueing {len(videos)} playlist urls for local processing.")
+    localqueue.queue_urls(videos, vtype="p")
+    log.info(f"queued {len(videos)} playlist urls for processing")
 
 
 def processIPlayerUrls(videos):
-    try:
-        log.debug(f"queueing {len(videos)} iplayer urls for local processing.")
-        localqueue.queue_urls(videos, vtype="i")
-        log.info(f"queued {len(videos)} iplayer urls for processing")
-    except Exception as e:  # noqa: BLE001
-        errorRaise(sys.exc_info()[2], e)
+    log.debug(f"queueing {len(videos)} iplayer urls for local processing.")
+    localqueue.queue_urls(videos, vtype="i")
+    log.info(f"queued {len(videos)} iplayer urls for processing")
 
 
 def processNewUrls(urls):
-    try:
-        plists, iplayer, videos = sortUrls(urls)
-        if len(videos):
-            processVideoUrls(videos)
-        if len(plists):
-            processPlaylistUrls(plists)
-        if len(iplayer):
-            processIPlayerUrls(iplayer)
-    except Exception as e:  # noqa: BLE001
-        errorNotify(sys.exc_info()[2], e)
+    plists, iplayer, videos = sortUrls(urls)
+    if len(videos):
+        processVideoUrls(videos)
+    if len(plists):
+        processPlaylistUrls(plists)
+    if len(iplayer):
+        processIPlayerUrls(iplayer)
 
 
 def oneOnly(pidfn):
-    try:
-        if os.path.exists(pidfn):
-            ipid = checkPid(pidfn)
-            if ipid:
-                raise onlyOne(f"{__appname__} is already running with pid {ipid}")
-        with open(pidfn, "w") as ofn:
-            log.info("Writing pid file")
-            ofn.write(f"{os.getpid()}\n")
-        with open(pidfn, "r") as ifn:
-            pidn = ifn.read()
-            log.info(f"running pid, read from pid file is {pidn}")
-    except Exception as e:  # noqa: BLE001
-        errorExit(sys.exc_info()[2], e)
+    if os.path.exists(pidfn):
+        ipid = checkPid(pidfn)
+        if ipid:
+            raise onlyOne(f"{__appname__} is already running with pid {ipid}")
+    with open(pidfn, "w") as ofn:
+        log.info("Writing pid file")
+        ofn.write(f"{os.getpid()}\n")
+    with open(pidfn, "r") as ifn:
+        pidn = ifn.read()
+        log.info(f"running pid, read from pid file is {pidn}")
 
 
 def checkPid(pidfn):
