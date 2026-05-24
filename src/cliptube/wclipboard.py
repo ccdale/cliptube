@@ -42,7 +42,7 @@ signal(SIGTERM, interruptWP)
 
 
 def checkForNewUrls():
-    urls = getNewUrls()
+    urls = getNewUrls() or []
     if len(urls):
         log.debug(f"watchclipboard: {len(urls)} new urls found")
         processNewUrls(urls)
