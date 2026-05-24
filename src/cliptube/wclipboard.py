@@ -48,38 +48,6 @@ def checkForNewUrls():
         processNewUrls(urls)
 
 
-def watchparcellite():
-    try:
-        log.info(f"{__appname__} {__version__} starting - Interrupt to exit")
-        cfg = readConfig()
-        while not ev.is_set():
-            checkForNewUrls()
-            log.debug(f"sleeping for {cfg['parcellite']['sleeptime']} seconds")
-            ev.wait(float(cfg["parcellite"]["sleeptime"]))
-        # final check before exiting
-        log.info("Final check for urls before shutting down")
-        checkForNewUrls()
-        log.info(f"{__appname__} closing down, bye.")
-    except Exception as e:  # noqa: BLE001
-        errorNotify(sys.exc_info()[2], e)
-
-
-def watchCopyQ():
-    try:
-        log.info(f"{__appname__} {__version__} starting - Interrupt to exit")
-        cfg = readConfig()
-        while not ev.is_set():
-            checkForNewUrls()
-            log.debug(f"sleeping for {cfg['parcellite']['sleeptime']} seconds")
-            ev.wait(float(cfg["parcellite"]["sleeptime"]))
-        # final check before exiting
-        log.info("Final check for urls before shutting down")
-        checkForNewUrls()
-        log.info(f"{__appname__} closing down, bye.")
-    except Exception as e:  # noqa: BLE001
-        errorNotify(sys.exc_info()[2], e)
-
-
 def watchGnomeClipboard():
     processor = None
     try:

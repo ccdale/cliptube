@@ -26,8 +26,6 @@ from pathlib import Path
 
 from cliptube import __appname__, errorRaise
 
-# from cliptube.files import expandPath
-
 DEFAULT_YTDLP_BIN = "/home/chris/bin/yt-dlp"
 
 
