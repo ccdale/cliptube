@@ -87,6 +87,9 @@ class URLProcessorWorker(threading.Thread):
         self.task_queue = task_queue
         self.on_task_finished = on_task_finished
         self.running = True
+        self.current_task = None
+        self.current_process = None
+        self._process_lock = threading.Lock()
 
     def run(self):
         """Process tasks from the queue until stopped."""
@@ -108,6 +111,11 @@ class URLProcessorWorker(threading.Thread):
             task: A ProcessingTask object
         """
         try:
+            # Track current task for potential recovery on shutdown
+            with self._process_lock:
+                self.current_task = task
+                self.current_process = None
+
             log.debug(f"Processing {task}")
             ytdlp_bin = getYtDlpBin()
             if task.vtype == "i":
@@ -122,11 +130,11 @@ class URLProcessorWorker(threading.Thread):
                     "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s"
                 )
                 cmd = [ytdlp_bin, "-o", output_template, task.url]
-                sout, serr = shellCommand(cmd)
+                sout, serr = shellCommand(cmd, process_callback=self._store_process)
             else:
                 # yt-dlp for videos
                 cmd = [ytdlp_bin, task.url]
-                sout, serr = shellCommand(cmd)
+                sout, serr = shellCommand(cmd, process_callback=self._store_process)
 
             log.info(f"Running command: {' '.join(cmd)}")
             log.debug(f"Command stdout: {sout}")
@@ -148,9 +156,33 @@ class URLProcessorWorker(threading.Thread):
             log.error(f"Failed to process {task.url}: {e}")
             errorNotify(sys.exc_info()[2], e)
         finally:
+            with self._process_lock:
+                self.current_task = None
+                self.current_process = None
             self.task_queue.task_done()
             if self.on_task_finished is not None:
                 self.on_task_finished()
+
+    def _store_process(self, proc):
+        """Store reference to running process for potential interruption."""
+        with self._process_lock:
+            self.current_process = proc
+
+    def interrupt(self):
+        """Interrupt the currently running process if any."""
+        with self._process_lock:
+            if self.current_process and self.current_process.poll() is None:
+                try:
+                    self.current_process.terminate()
+                    # Give it a moment to terminate gracefully
+                    self.current_process.wait(timeout=2)
+                except (ProcessLookupError, subprocess.TimeoutExpired):
+                    # If terminate didn't work, force kill
+                    try:
+                        self.current_process.kill()
+                    except ProcessLookupError:
+                        pass  # Process already gone
+                log.info("Interrupted running process")
 
     def stop(self):
         """Signal the worker to stop."""
@@ -225,10 +257,17 @@ class LocalQueueProcessor:
                 errorNotify(sys.exc_info()[2], e)
 
     def _save_to_cache(self):
-        """Save pending tasks to cache for later recovery."""
+        """Save pending and current tasks to cache for later recovery."""
         try:
             tasks = []
-            # Drain the queue into a list
+
+            # First, save any currently running tasks (they were interrupted)
+            current_tasks = self.get_current_tasks()
+            for task in current_tasks:
+                tasks.append(task.to_dict())
+                log.info(f"Saving interrupted task to cache: {task.url}")
+
+            # Then drain the queue into a list
             while not self.task_queue.empty():
                 try:
                     task = self.task_queue.get_nowait()
@@ -265,7 +304,22 @@ class LocalQueueProcessor:
             self.task_queue.put(task)
             log.debug(f"Queued: {task}")
 
-    def shutdown(self, timeout=None, wait_for_current=True):
+    def interrupt_all(self):
+        """Interrupt all running subprocesses (for SIGTERM handling)."""
+        log.info("Interrupting all running subprocesses...")
+        for worker in self.workers:
+            worker.interrupt()
+
+    def get_current_tasks(self):
+        """Get all tasks currently being processed by workers."""
+        current = []
+        for worker in self.workers:
+            with worker._process_lock:
+                if worker.current_task is not None:
+                    current.append(worker.current_task)
+        return current
+
+    def shutdown(self, timeout=None, wait_for_current=True, force=False):
         """
         Gracefully shut down, allowing current job to finish then saving pending items.
 
@@ -273,10 +327,15 @@ class LocalQueueProcessor:
             timeout: Maximum seconds to wait for current task to finish
             wait_for_current: If True, wait for current job to finish before saving cache.
                               If False, save immediately (faster shutdown).
+            force: If True, interrupt running processes immediately
         """
         log.info("URL processor shutting down...")
 
-        if wait_for_current:
+        if force:
+            log.info("Force shutdown: interrupting running subprocesses")
+            self.interrupt_all()
+
+        if wait_for_current and not force:
             # Wait for the current job to finish (with timeout)
             log.info("Waiting for current task to complete...")
             self.task_queue.join()
@@ -286,7 +345,7 @@ class LocalQueueProcessor:
                 "Skipping wait for current task, saving pending items immediately"
             )
 
-        # Save remaining tasks to cache
+        # Save remaining tasks to cache (including current tasks if interrupted)
         self._save_to_cache()
 
         # Stop the workers

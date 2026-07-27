@@ -43,32 +43,45 @@ def listCmd(cmd):
     )
 
 
-def shellCommand(cmd, canfail=False):
-    """Runs the shell command cmd
+def shellCommand(cmd, canfail=False, process_callback=None):
+    """Runs the shell command cmd with optional process tracking.
 
-    returns a tuple of (stdout, stderr) or None
+    Args:
+        cmd: Command as string or list
+        canfail: If False, raise exception on non-zero exit
+        process_callback: Optional callable(process) to store the Popen object
+
+    returns a tuple of (stdout, stderr)
     raises an exception if subprocess returns a non-zero exitcode
     """
     ret = None
+    proc = None
     try:
         cmd = listCmd(cmd)
-        # print(" ".join(cmd))
-        ret = subprocess.run(cmd, capture_output=True, check=False, text=True)
-        if not canfail:
-            # raise an exception if cmd returns an error code
-            ret.check_returncode()
-        return (ret.stdout, ret.stderr)
+        # Use Popen instead of run() to track and manage the process
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        # Notify caller of the process object for potential interruption
+        if process_callback is not None:
+            process_callback(proc)
+        stdout, stderr = proc.communicate()
+        if not canfail and proc.returncode != 0:
+            ret = type("obj", (object,), {"returncode": proc.returncode, "stdout": stdout, "stderr": stderr})()
+            ret.check_returncode = lambda: proc.check_returncode()
+            raise CalledProcessError(proc.returncode, cmd)
+        return (stdout, stderr)
     except CalledProcessError as e:
-        stderr = ret.stderr if ret else "N/A"
-        stdout = ret.stdout if ret else "N/A"
-        msg = f"ERROR: {stderr}\nstdout: {stdout}"
+        stdout_text = stdout if proc else "N/A"
+        stderr_text = stderr if proc else "N/A"
+        msg = f"ERROR: {stderr_text}\nstdout: {stdout_text}"
         msg += f"\nCommand was:\n{' '.join(cmd)}"
         print(msg)
         errorRaise(sys.exc_info()[2], e)
     except (InvalidCommandType, OSError, TypeError, ValueError) as e:
-        stderr = ret.stderr if ret else "N/A"
-        stdout = ret.stdout if ret else "N/A"
-        msg = f"ERROR: {stderr}\nstdout: {stdout}"
+        stdout_text = stdout if proc else "N/A"
+        stderr_text = stderr if proc else "N/A"
+        msg = f"ERROR: {stderr_text}\nstdout: {stdout_text}"
         msg += f"\nCommand was:\n{' '.join(cmd)}"
         print(msg)
         errorRaise(sys.exc_info()[2], e)

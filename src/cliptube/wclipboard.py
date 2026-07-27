@@ -21,6 +21,9 @@ ccalogging.setConsoleOut()
 # ccalogging.setDebug()
 ccalogging.setInfo()
 
+# Global processor reference for signal handler access
+processor = None
+
 # exitflag = False
 ev = Event()
 ev.clear()
@@ -31,6 +34,12 @@ class onlyOne(Exception):
 
 
 def interruptWP(signrcvd, frame):
+    """Handle SIGINT/SIGTERM by interrupting subprocesses and gracefully shutting down."""
+    signame = "SIGINT" if signrcvd == SIGINT else "SIGTERM"
+    log.info(f"Received {signame}, initiating graceful shutdown with subprocess interruption...")
+    if processor:
+        # Force shutdown: interrupt running subprocesses and save state
+        processor.shutdown(timeout=5, wait_for_current=False, force=True)
     ev.set()
 
 
@@ -48,7 +57,7 @@ def checkForNewUrls():
 
 
 def watchGnomeClipboard():
-    processor = None
+    global processor
     try:
         pidfn = "/tmp/cliptube.pid"
         oneOnly(pidfn)
@@ -65,7 +74,7 @@ def watchGnomeClipboard():
         checkForNewUrls()
         # Gracefully shutdown the processor
         if processor:
-            processor.shutdown(timeout=90, wait_for_current=True)
+            processor.shutdown(timeout=90, wait_for_current=True, force=False)
         if os.path.exists(pidfn):
             try:
                 os.unlink(pidfn)
@@ -80,10 +89,10 @@ def watchGnomeClipboard():
                 log.error(
                     f"Error deleting pid file during exception handling: {cleanup_err}"
                 )
-        # Ensure processor shutdown even on error
+        # Ensure processor shutdown even on error with forced subprocess interruption
         if processor:
             try:
-                processor.shutdown(timeout=5, wait_for_current=False)
+                processor.shutdown(timeout=5, wait_for_current=False, force=True)
             except Exception as shutdown_err:  # noqa: BLE001
                 log.error(f"Error during processor shutdown: {shutdown_err}")
         errorExit(sys.exc_info()[2], e)
