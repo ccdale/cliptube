@@ -68,7 +68,7 @@ def test_ProcessingTask_serialization():
 def test_ProcessingTask_vtype_variants():
     """Test ProcessingTask with different vtypes."""
     url = "https://example.com/video"
-    for vtype in ["v", "p", "i"]:
+    for vtype in ["v", "p", "i", "r"]:
         task = ProcessingTask(url, vtype=vtype)
         assert task.vtype == vtype
 
@@ -213,6 +213,31 @@ def test_processing_task_radio_uses_get_iplayer_output_directory(tmp_path):
             process_callback=processor.workers[0]._store_process,
         )
         assert radio_dir.is_dir()
+
+    processor.shutdown(timeout=2)
+
+
+def test_processing_task_radio_handles_download_failure(tmp_path):
+    """Test radio command failures are handled without stopping the worker."""
+    url = "https://www.bbc.co.uk/sounds/play/m001example"
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
+
+    with (
+        patch(
+            "cliptube.localqueue.shellCommand",
+            side_effect=subprocess.CalledProcessError(
+                returncode=1,
+                cmd=["get_iplayer", "--type=radio", url],
+            ),
+        ) as mock_cmd,
+        patch("cliptube.localqueue.expandPath", return_value=str(tmp_path / "radio")),
+        patch("cliptube.localqueue.errorNotify") as mock_error,
+    ):
+        processor.queue_urls([url], vtype="r")
+        processor.task_queue.join()
+
+        mock_cmd.assert_called_once()
+        mock_error.assert_called_once()
 
     processor.shutdown(timeout=2)
 
