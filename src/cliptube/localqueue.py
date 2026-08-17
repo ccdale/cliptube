@@ -55,7 +55,8 @@ class ProcessingTask:
 
         Args:
             url: The URL to process
-            vtype: Type of content ('v' for video, 'p' for playlist, 'i' for iplayer)
+            vtype: Type of content ('v' for video, 'p' for playlist, 'i' for iplayer,
+                'r' for radio)
         """
         self.url = url
         self.vtype = vtype
@@ -124,6 +125,11 @@ class URLProcessorWorker(threading.Thread):
                 cmd = completed.args
                 sout = completed.stdout
                 serr = completed.stderr
+            elif task.vtype == "r":
+                radio_dir = expandPath("~/radio")
+                Path(radio_dir).mkdir(parents=True, exist_ok=True)
+                cmd = ["get_iplayer", "--type=radio", "--output", radio_dir, task.url]
+                sout, serr = shellCommand(cmd, process_callback=self._store_process)
             elif task.vtype == "p":
                 # yt-dlp for playlists, organized by playlist name
                 output_template = (

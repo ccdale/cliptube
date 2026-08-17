@@ -29,6 +29,7 @@ def checkUrl(txt):
         or ("youtube.com" in txt and "shorts" in txt)
         or ("youtube.com" in txt and "playlist" in txt)
         or "bbc.co.uk/iplayer" in txt
+        or txt.strip().startswith("https://www.bbc.co.uk/sounds/play/")
     ):
         return txt.strip()
     return None

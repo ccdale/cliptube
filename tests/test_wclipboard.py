@@ -1,4 +1,11 @@
 from cliptube import wclipboard
+from cliptube.history import checkUrl
+
+
+def test_checkUrl_accepts_bbc_sounds_radio_url():
+    url = "https://www.bbc.co.uk/sounds/play/m001example"
+
+    assert checkUrl(url) == url
 
 
 def test_sortUrls_separates_content_types():
@@ -6,13 +13,15 @@ def test_sortUrls_separates_content_types():
         "https://www.youtube.com/watch?v=video1",
         "https://www.youtube.com/playlist?list=abc123",
         "https://www.bbc.co.uk/iplayer/episode/b0000001/example",
+        "https://www.bbc.co.uk/sounds/play/m001example",
         "https://youtu.be/video2",
     ]
 
-    playlists, iplayer, videos = wclipboard.sortUrls(urls)
+    playlists, iplayer, radio, videos = wclipboard.sortUrls(urls)
 
     assert playlists == ["https://www.youtube.com/playlist?list=abc123"]
     assert iplayer == ["https://www.bbc.co.uk/iplayer/episode/b0000001/example"]
+    assert radio == ["https://www.bbc.co.uk/sounds/play/m001example"]
     assert videos == [
         "https://www.youtube.com/watch?v=video1",
         "https://youtu.be/video2",
@@ -31,6 +40,7 @@ def test_processNewUrls_routes_to_expected_queues(monkeypatch):
         "https://www.youtube.com/watch?v=video1",
         "https://www.youtube.com/playlist?list=abc123",
         "https://www.bbc.co.uk/iplayer/episode/b0000001/example",
+        "https://www.bbc.co.uk/sounds/play/m001example",
         "https://youtu.be/video2",
     ]
     wclipboard.processNewUrls(urls)
@@ -39,6 +49,7 @@ def test_processNewUrls_routes_to_expected_queues(monkeypatch):
         (["https://www.youtube.com/watch?v=video1", "https://youtu.be/video2"], "v"),
         (["https://www.youtube.com/playlist?list=abc123"], "p"),
         (["https://www.bbc.co.uk/iplayer/episode/b0000001/example"], "i"),
+        (["https://www.bbc.co.uk/sounds/play/m001example"], "r"),
     ]
 
 

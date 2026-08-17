@@ -194,6 +194,29 @@ def test_processing_task_different_vtypes():
     processor.shutdown(timeout=2)
 
 
+def test_processing_task_radio_uses_get_iplayer_output_directory(tmp_path):
+    """Test radio tasks use get_iplayer and the user's radio directory."""
+    url = "https://www.bbc.co.uk/sounds/play/m001example"
+    radio_dir = tmp_path / "radio"
+    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
+
+    with (
+        patch("cliptube.localqueue.shellCommand") as mock_cmd,
+        patch("cliptube.localqueue.expandPath", return_value=str(radio_dir)),
+    ):
+        mock_cmd.return_value = ("", "")
+        processor.queue_urls([url], vtype="r")
+        processor.task_queue.join()
+
+        mock_cmd.assert_called_once_with(
+            ["get_iplayer", "--type=radio", "--output", str(radio_dir), url],
+            process_callback=processor.workers[0]._store_process,
+        )
+        assert radio_dir.is_dir()
+
+    processor.shutdown(timeout=2)
+
+
 def test_processing_task_iplayer_invalid_url():
     """Test that invalid BBC URLs are routed through the iPlayer error path."""
     url = "https://example.com/not-bbc"
