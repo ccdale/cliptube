@@ -53,6 +53,16 @@ def test_get_bbc_handling_enabled_reads_setting():
     assert getBBCHandlingEnabled(cfg) is False
 
 
+def test_get_bbc_handling_enabled_rejects_invalid_value():
+    import configparser
+
+    cfg = configparser.ConfigParser()
+    cfg.read_dict({"bbc": {"enabled": "maybe"}})
+
+    with pytest.raises(ValueError, match=r"\[bbc\] enabled"):
+        getBBCHandlingEnabled(cfg)
+
+
 def test_readConfig():
     cfg = readConfig()
     assert cfg["mediaserver"]["user"] == "chris"

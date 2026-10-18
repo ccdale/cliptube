@@ -64,7 +64,12 @@ def getBBCHandlingEnabled(cfg=None):
     """Return whether BBC iPlayer and Sounds URLs should be queued."""
     if cfg is None:
         cfg = readConfig()
-    return cfg.getboolean("bbc", "enabled", fallback=True)
+    try:
+        return cfg.getboolean("bbc", "enabled", fallback=True)
+    except ValueError as e:
+        raise ValueError(
+            "[bbc] enabled must be a valid boolean value"
+        ) from e
 
 
 def writeConfig(cfg):
