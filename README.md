@@ -74,6 +74,9 @@ Important keys:
 - `[mediaserver].ytdlpbin`: path to `yt-dlp` binary
 - `[gnomeclipindicator].histfile`: clipboard history JSON file to read
 - `[gnomeclipindicator].sleeptime`: poll interval for clipboard checks
+- `[bbc].enabled`: whether BBC iPlayer and BBC Sounds URLs are queued for processing (`true` by default)
+
+Set `[bbc] enabled = false` to keep detecting BBC URLs without queueing downloads. These URLs will still be recorded in Cliptube's history as seen.
 
 ## Run Commands
 
@@ -114,6 +117,7 @@ The clipboard scanner currently accepts:
 - `youtube.com/shorts/...`
 - `youtube.com/playlist?...`
 - `bbc.co.uk/iplayer/...`
+- `bbc.co.uk/sounds/play/...`
 
 ## Testing And Linting
 

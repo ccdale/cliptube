@@ -23,13 +23,34 @@ import os
 
 import pytest
 
-from cliptube.config import ConfigFileNotFound, expandPath, readConfig, writeConfig
+from cliptube.config import (
+    ConfigFileNotFound,
+    expandPath,
+    getBBCHandlingEnabled,
+    readConfig,
+    writeConfig,
+)
 
 
 def test_expandPath():
     tilde = "~/"
     home = os.path.abspath(os.path.expanduser(tilde))
     assert home == expandPath(tilde)
+
+
+def test_get_bbc_handling_enabled_defaults_to_true():
+    import configparser
+
+    assert getBBCHandlingEnabled(configparser.ConfigParser()) is True
+
+
+def test_get_bbc_handling_enabled_reads_setting():
+    import configparser
+
+    cfg = configparser.ConfigParser()
+    cfg.read_dict({"bbc": {"enabled": "false"}})
+
+    assert getBBCHandlingEnabled(cfg) is False
 
 
 def test_readConfig():

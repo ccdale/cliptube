@@ -12,7 +12,7 @@ from cliptube import (
     localqueue,
     log,
 )
-from cliptube.config import readConfig
+from cliptube.config import getBBCHandlingEnabled, readConfig
 from cliptube.history import getNewUrls
 
 ccalogging.setConsoleOut()
@@ -147,10 +147,14 @@ def processNewUrls(urls):
         processVideoUrls(videos)
     if len(plists):
         processPlaylistUrls(plists)
-    if len(iplayer):
-        processIPlayerUrls(iplayer)
-    if len(radio):
-        processRadioUrls(radio)
+    if iplayer or radio:
+        if getBBCHandlingEnabled(readConfig()):
+            if len(iplayer):
+                processIPlayerUrls(iplayer)
+            if len(radio):
+                processRadioUrls(radio)
+        else:
+            log.info("BBC URL handling is disabled; skipping BBC URLs")
 
 
 def oneOnly(pidfn):

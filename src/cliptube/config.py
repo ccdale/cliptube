@@ -60,6 +60,13 @@ def getYtDlpBin(cfg=None):
         errorRaise(sys.exc_info()[2], e)
 
 
+def getBBCHandlingEnabled(cfg=None):
+    """Return whether BBC iPlayer and Sounds URLs should be queued."""
+    if cfg is None:
+        cfg = readConfig()
+    return cfg.getboolean("bbc", "enabled", fallback=True)
+
+
 def writeConfig(cfg):
     try:
         absfn = expandPath(f"~/.config/{__appname__}.cfg")

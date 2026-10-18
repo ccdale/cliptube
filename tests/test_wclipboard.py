@@ -35,6 +35,7 @@ def test_processNewUrls_routes_to_expected_queues(monkeypatch):
         queued.append((urls, vtype))
 
     monkeypatch.setattr(wclipboard.localqueue, "queue_urls", fake_queue_urls)
+    monkeypatch.setattr(wclipboard, "readConfig", lambda: _bbc_config(True))
 
     urls = [
         "https://www.youtube.com/watch?v=video1",
@@ -51,6 +52,36 @@ def test_processNewUrls_routes_to_expected_queues(monkeypatch):
         (["https://www.bbc.co.uk/iplayer/episode/b0000001/example"], "i"),
         (["https://www.bbc.co.uk/sounds/play/m001example"], "r"),
     ]
+
+
+def test_processNewUrls_skips_bbc_when_disabled(monkeypatch):
+    queued = []
+
+    def fake_queue_urls(urls, vtype="v"):
+        queued.append((urls, vtype))
+
+    monkeypatch.setattr(wclipboard.localqueue, "queue_urls", fake_queue_urls)
+    monkeypatch.setattr(wclipboard, "readConfig", lambda: _bbc_config(False))
+
+    wclipboard.processNewUrls(
+        [
+            "https://www.youtube.com/watch?v=video1",
+            "https://www.bbc.co.uk/iplayer/episode/b0000001/example",
+            "https://www.bbc.co.uk/sounds/play/m001example",
+        ]
+    )
+
+    assert queued == [
+        (["https://www.youtube.com/watch?v=video1"], "v"),
+    ]
+
+
+def _bbc_config(enabled):
+    import configparser
+
+    cfg = configparser.ConfigParser()
+    cfg.read_dict({"bbc": {"enabled": str(enabled)}})
+    return cfg
 
 
 def test_checkForNewUrls_ignores_none(monkeypatch):
