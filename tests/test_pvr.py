@@ -2,7 +2,12 @@ import os
 
 import pytest
 
-from cliptube.pvr import BBCProgramme, parse_bbc_url, write_pvr_file
+from cliptube.pvr import (
+    BBCProgramme,
+    is_bbc_programme_url,
+    parse_bbc_url,
+    write_pvr_file,
+)
 
 
 @pytest.mark.parametrize(
@@ -49,6 +54,20 @@ def test_parse_bbc_url(url, programme, expected_text):
     ],
 )
 def test_parse_bbc_url_rejects_unsupported_urls(url):
+    with pytest.raises(ValueError, match="Unsupported BBC URL"):
+        parse_bbc_url(url)
+
+
+def test_parse_bbc_url_accepts_different_pid_lengths():
+    programme = parse_bbc_url("https://www.bbc.co.uk/sounds/play/m0030x8z123")
+
+    assert programme == BBCProgramme("m0030x8z123", "radio", False)
+
+
+def test_is_bbc_programme_url_accepts_unknown_programme_path():
+    url = "https://www.bbc.co.uk/iplayer/collections/new-format/abc123"
+
+    assert is_bbc_programme_url(url)
     with pytest.raises(ValueError, match="Unsupported BBC URL"):
         parse_bbc_url(url)
 

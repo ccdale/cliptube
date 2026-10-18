@@ -12,10 +12,12 @@
 - [x] Replace the current BBC download response with generation of `get_iplayer` PVR files.
 - [x] Use the parser in `pvr-maker.tmp.py` as a starting point; move the reusable function into Cliptube and remove the hardcoded test URLs and top-level test execution.
 - [x] Extract the programme identifier/search string, media type (`tv` or `radio`), and whether the URL represents a series or episode.
+- [x] Parse URL path segments without assuming a fixed PID length, while retaining explicit supported BBC route modes.
 - [x] Generate recursive PVR entries for series and single-programme entries for episodes, following the examples below.
 - [x] Keep the search string free of labels such as `Series 3`; the correct search string lets get_iplayer's history record episodes without excluding them by series number.
 - [x] Add tests for all four example URL types, generated PVR contents, unsupported URLs, and search strings without `Series #` labels.
-- [x] Write generated files directly to `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr`.
+- [x] Write generated files directly to the configured `[bbc].pvrdir`, defaulting to `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr`.
+- [x] Keep that default in code while allowing `[bbc].pvrdir` in `~/.config/cliptube.cfg` to override it.
 - [x] Ensure generated files are owned by UID 1000 and GID 1000.
 
 The temporary `pvr-maker.tmp.py` prototype and its hardcoded import-time test run have been removed after integration.

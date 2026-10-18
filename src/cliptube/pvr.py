@@ -10,16 +10,23 @@ DEFAULT_PVR_DIRECTORY = "/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr"
 PVR_FILE_UID = 1000
 PVR_FILE_GID = 1000
 
-_BBC_PATH = re.compile(
-    r"/(?P<platform>iplayer|sounds)/(?P<mode>episodes|episode|brand|play)/"
-    r"(?P<pid>[a-z0-9]{8})(?:/[^?#]*)?/?"
-)
+_PID = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 _PROGRAMME_TYPES = {
     ("iplayer", "episodes"): ("tv", True),
     ("iplayer", "episode"): ("tv", False),
     ("sounds", "brand"): ("radio", True),
     ("sounds", "play"): ("radio", False),
 }
+
+
+def is_bbc_programme_url(url):
+    """Return whether a URL is under a BBC TV or Sounds programme path."""
+    parsed = urlparse(url.strip())
+    return (
+        parsed.scheme in {"http", "https"}
+        and parsed.hostname in {"bbc.co.uk", "www.bbc.co.uk"}
+        and parsed.path.startswith(("/iplayer/", "/sounds/"))
+    )
 
 
 @dataclass(frozen=True)
@@ -41,23 +48,22 @@ class BBCProgramme:
 def parse_bbc_url(url):
     """Parse a BBC TV/radio episode or series URL into its PVR details."""
     parsed = urlparse(url.strip())
-    if parsed.scheme not in {"http", "https"} or parsed.hostname not in {
-        "bbc.co.uk",
-        "www.bbc.co.uk",
-    }:
+    if not is_bbc_programme_url(url):
         raise ValueError(f"Unsupported BBC URL: {url}")
 
-    match = _BBC_PATH.fullmatch(parsed.path)
-    if match is None:
+    path_parts = parsed.path.strip("/").split("/")
+    if len(path_parts) < 3:
         raise ValueError(f"Unsupported BBC URL: {url}")
 
-    details = match.groupdict()
-    programme_type = _PROGRAMME_TYPES.get((details["platform"], details["mode"]))
+    platform, mode, pid = path_parts[:3]
+    programme_type = _PROGRAMME_TYPES.get((platform, mode))
     if programme_type is None:
+        raise ValueError(f"Unsupported BBC URL: {url}")
+    if not _PID.fullmatch(pid):
         raise ValueError(f"Unsupported BBC URL: {url}")
 
     media_type, recursive = programme_type
-    return BBCProgramme(details["pid"], media_type, recursive)
+    return BBCProgramme(pid.lower(), media_type, recursive)
 
 
 def write_pvr_file(

@@ -7,7 +7,7 @@ import ccalogging
 
 from cliptube import __appname__, errorNotify
 from cliptube.config import expandPath, readConfig
-from cliptube.pvr import parse_bbc_url
+from cliptube.pvr import is_bbc_programme_url, parse_bbc_url
 
 log = ccalogging.log
 
@@ -34,7 +34,8 @@ def checkUrl(txt):
     try:
         parse_bbc_url(txt)
     except ValueError:
-        return None
+        if not is_bbc_programme_url(txt):
+            return None
     return txt.strip()
 
 

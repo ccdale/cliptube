@@ -12,9 +12,9 @@ from cliptube import (
     localqueue,
     log,
 )
-from cliptube.config import getBBCHandlingEnabled, readConfig
+from cliptube.config import getBBCHandlingEnabled, getBBCPvrDirectory, readConfig
 from cliptube.history import getNewUrls
-from cliptube.pvr import write_pvr_file
+from cliptube.pvr import is_bbc_programme_url, write_pvr_file
 
 ccalogging.setConsoleOut()
 # logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
@@ -105,10 +105,10 @@ def sortUrls(urls):
     radio = []
     videos = []
     for url in urls:
-        if "bbc.co.uk/iplayer/" in url:
-            iplayer.append(url)
-        elif "bbc.co.uk/sounds/" in url:
+        if "bbc.co.uk/sounds/" in url and is_bbc_programme_url(url):
             radio.append(url)
+        elif is_bbc_programme_url(url):
+            iplayer.append(url)
         elif "playlist" in url:
             log.debug(f"playlist url found: {url}")
             plists.append(url)
@@ -130,10 +130,10 @@ def processPlaylistUrls(videos):
     log.info(f"queued {len(videos)} playlist urls for processing")
 
 
-def processBBCUrls(urls):
+def processBBCUrls(urls, output_directory):
     for url in urls:
         try:
-            pvr_path = write_pvr_file(url)
+            pvr_path = write_pvr_file(url, output_directory=output_directory)
         except (OSError, ValueError) as e:
             log.error(f"Failed to create PVR file for {url}: {e}")
         else:
@@ -147,8 +147,9 @@ def processNewUrls(urls):
     if len(plists):
         processPlaylistUrls(plists)
     if iplayer or radio:
-        if getBBCHandlingEnabled(readConfig()):
-            processBBCUrls(iplayer + radio)
+        cfg = readConfig()
+        if getBBCHandlingEnabled(cfg):
+            processBBCUrls(iplayer + radio, getBBCPvrDirectory(cfg))
         else:
             log.info("BBC URL handling is disabled; skipping BBC URLs")
 

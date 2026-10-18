@@ -25,6 +25,7 @@ import sys
 from pathlib import Path
 
 from cliptube import __appname__, errorRaise
+from cliptube.pvr import DEFAULT_PVR_DIRECTORY
 
 DEFAULT_YTDLP_BIN = "/home/chris/bin/yt-dlp"
 
@@ -70,6 +71,14 @@ def getBBCHandlingEnabled(cfg=None):
         raise ValueError(
             "[bbc] enabled must be a valid boolean value"
         ) from e
+
+
+def getBBCPvrDirectory(cfg=None):
+    """Return the configured PVR directory or its built-in default."""
+    if cfg is None:
+        cfg = readConfig()
+    path = cfg.get("bbc", "pvrdir", fallback=DEFAULT_PVR_DIRECTORY)
+    return expandPath(path or DEFAULT_PVR_DIRECTORY)
 
 
 def writeConfig(cfg):

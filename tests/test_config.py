@@ -27,6 +27,7 @@ from cliptube.config import (
     ConfigFileNotFound,
     expandPath,
     getBBCHandlingEnabled,
+    getBBCPvrDirectory,
     readConfig,
     writeConfig,
 )
@@ -61,6 +62,25 @@ def test_get_bbc_handling_enabled_rejects_invalid_value():
 
     with pytest.raises(ValueError, match=r"\[bbc\] enabled"):
         getBBCHandlingEnabled(cfg)
+
+
+def test_get_bbc_pvr_directory_defaults_to_builtin_path():
+    import configparser
+
+    from cliptube.pvr import DEFAULT_PVR_DIRECTORY
+
+    assert getBBCPvrDirectory(configparser.ConfigParser()) == expandPath(
+        DEFAULT_PVR_DIRECTORY
+    )
+
+
+def test_get_bbc_pvr_directory_uses_configured_path():
+    import configparser
+
+    cfg = configparser.ConfigParser()
+    cfg.read_dict({"bbc": {"pvrdir": "~/cliptube-pvr"}})
+
+    assert getBBCPvrDirectory(cfg) == expandPath("~/cliptube-pvr")
 
 
 def test_readConfig():

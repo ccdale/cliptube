@@ -73,9 +73,12 @@ Important keys:
 - `[mediaserver].ytdlpbin`: path to `yt-dlp` binary
 - `[gnomeclipindicator].histfile`: clipboard history JSON file to read
 - `[gnomeclipindicator].sleeptime`: poll interval for clipboard checks
-- `[bbc].enabled`: whether BBC iPlayer and BBC Sounds URLs are queued for processing (`true` by default)
+- `[bbc].enabled`: whether BBC iPlayer and BBC Sounds URLs generate PVR files (`true` by default)
+- `[bbc].pvrdir`: directory for generated get_iplayer PVR files; defaults to `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr`
 
-Set `[bbc] enabled = false` to keep detecting BBC URLs without queueing downloads. These URLs will still be recorded in Cliptube's history as seen.
+Set `[bbc] enabled = false` to keep detecting BBC URLs without generating PVR files. These URLs will still be recorded in Cliptube's history as seen.
+
+BBC programme URLs are recognized by their hostname and `/iplayer/` or `/sounds/` path. PVR generation supports the documented episode and series routes; an unrecognized route is logged instead of being passed to yt-dlp.
 
 ## Run Commands
 
@@ -89,7 +92,7 @@ Run directly with uv:
 uv run cliptube
 ```
 
-BBC PVR files are written to `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr` and assigned to UID/GID `1000`.
+BBC PVR files are written to `[bbc].pvrdir` (the default is `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr`) and assigned to UID/GID `1000`.
 
 ## Systemd User Services
 
