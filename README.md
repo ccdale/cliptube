@@ -92,7 +92,7 @@ Run directly with uv:
 uv run cliptube
 ```
 
-BBC PVR files are written to `[bbc].pvrdir` (the default is `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr`) and assigned to UID/GID `1000`.
+BBC PVR files are written to `[bbc].pvrdir` (the default is `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr`). Ownership is assigned by the mounted filesystem; confirm the get_iplayer container can read files with that ownership.
 
 ## Systemd User Services
 

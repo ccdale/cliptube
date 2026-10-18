@@ -18,14 +18,14 @@
 - [x] Add tests for all four example URL types, generated PVR contents, unsupported URLs, and search strings without `Series #` labels.
 - [x] Write generated files directly to the configured `[bbc].pvrdir`, defaulting to `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr`.
 - [x] Keep that default in code while allowing `[bbc].pvrdir` in `~/.config/cliptube.cfg` to override it.
-- [x] Ensure generated files are owned by UID 1000 and GID 1000.
+- [ ] Verify get_iplayer can read files with mount-assigned ownership (currently observed as UID 1000, GID 10); do not call `os.chown()` from Cliptube.
 
 The temporary `pvr-maker.tmp.py` prototype and its hardcoded import-time test run have been removed after integration.
 
 ## 3. Run PVR jobs in get_iplayer
 
 - [ ] Confirm the existing scheduled PVR run picks up files written directly to the mounted PVR directory without a separate trigger.
-- [ ] Verify the container can read PVR files owned by UID 1000 and GID 1000.
+- [ ] Verify the container can read PVR files with the NAS mount's assigned ownership.
 - [ ] No `incoming` directory, container-side watcher, or Compose change is needed for PVR-file import.
 
 Invalid PVR files are intentionally handled manually: get_iplayer logs them, and the operator monitors the logs and removes or adjusts invalid files. Do not add automated validation or repair.

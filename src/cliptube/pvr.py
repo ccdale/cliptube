@@ -1,14 +1,11 @@
 """Parse BBC programme URLs and write get_iplayer PVR files."""
 
-import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
 DEFAULT_PVR_DIRECTORY = "/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr"
-PVR_FILE_UID = 1000
-PVR_FILE_GID = 1000
 
 _PID = re.compile(r"[a-z0-9]+", re.IGNORECASE)
 _PROGRAMME_TYPES = {
@@ -69,14 +66,11 @@ def parse_bbc_url(url):
 def write_pvr_file(
     url,
     output_directory=DEFAULT_PVR_DIRECTORY,
-    uid=PVR_FILE_UID,
-    gid=PVR_FILE_GID,
 ):
-    """Write a PVR file for a supported BBC URL and set its owner and group."""
+    """Write a PVR file for a supported BBC URL."""
     programme = parse_bbc_url(url)
     output_path = Path(output_directory)
     output_path.mkdir(parents=True, exist_ok=True)
     pvr_path = output_path / programme.pid
     pvr_path.write_text(programme.to_pvr_text(), encoding="utf-8")
-    os.chown(pvr_path, uid, gid)
     return pvr_path

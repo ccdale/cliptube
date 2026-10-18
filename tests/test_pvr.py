@@ -1,5 +1,3 @@
-import os
-
 import pytest
 
 from cliptube.pvr import (
@@ -72,14 +70,7 @@ def test_is_bbc_programme_url_accepts_unknown_programme_path():
         parse_bbc_url(url)
 
 
-def test_write_pvr_file_creates_file_and_sets_owner(tmp_path, monkeypatch):
-    chown_calls = []
-
-    def fake_chown(path, uid, gid):
-        chown_calls.append((path, uid, gid))
-
-    monkeypatch.setattr(os, "chown", fake_chown)
-
+def test_write_pvr_file_creates_file(tmp_path):
     pvr_path = write_pvr_file(
         "https://www.bbc.co.uk/iplayer/episode/m00316gl/time-series-3-episode-1",
         output_directory=tmp_path,
@@ -87,4 +78,3 @@ def test_write_pvr_file_creates_file_and_sets_owner(tmp_path, monkeypatch):
 
     assert pvr_path == tmp_path / "m00316gl"
     assert pvr_path.read_text(encoding="utf-8") == "pid m00316gl\ntype tv\n"
-    assert chown_calls == [(pvr_path, 1000, 1000)]
