@@ -7,6 +7,7 @@ import ccalogging
 
 from cliptube import __appname__, errorNotify
 from cliptube.config import expandPath, readConfig
+from cliptube.pvr import parse_bbc_url
 
 log = ccalogging.log
 
@@ -28,11 +29,13 @@ def checkUrl(txt):
         "youtu.be" in txt
         or ("youtube.com" in txt and "shorts" in txt)
         or ("youtube.com" in txt and "playlist" in txt)
-        or "bbc.co.uk/iplayer" in txt
-        or txt.strip().startswith("https://www.bbc.co.uk/sounds/play/")
     ):
         return txt.strip()
-    return None
+    try:
+        parse_bbc_url(txt)
+    except ValueError:
+        return None
+    return txt.strip()
 
 
 def saveList(urls):

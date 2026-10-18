@@ -14,6 +14,7 @@ from cliptube import (
 )
 from cliptube.config import getBBCHandlingEnabled, readConfig
 from cliptube.history import getNewUrls
+from cliptube.pvr import write_pvr_file
 
 ccalogging.setConsoleOut()
 # logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
@@ -104,13 +105,13 @@ def sortUrls(urls):
     radio = []
     videos = []
     for url in urls:
-        if "playlist" in url:
+        if "bbc.co.uk/iplayer/" in url:
+            iplayer.append(url)
+        elif "bbc.co.uk/sounds/" in url:
+            radio.append(url)
+        elif "playlist" in url:
             log.debug(f"playlist url found: {url}")
             plists.append(url)
-        elif url.startswith("https://www.bbc.co.uk/sounds/play/"):
-            radio.append(url)
-        elif "iplayer" in url:
-            iplayer.append(url)
     videos.extend(
         [x for x in urls if x not in plists and x not in iplayer and x not in radio]
     )
@@ -129,16 +130,14 @@ def processPlaylistUrls(videos):
     log.info(f"queued {len(videos)} playlist urls for processing")
 
 
-def processIPlayerUrls(videos):
-    log.debug(f"queueing {len(videos)} iplayer urls for local processing.")
-    localqueue.queue_urls(videos, vtype="i")
-    log.info(f"queued {len(videos)} iplayer urls for processing")
-
-
-def processRadioUrls(radio):
-    log.debug(f"queueing {len(radio)} radio urls for local processing.")
-    localqueue.queue_urls(radio, vtype="r")
-    log.info(f"queued {len(radio)} radio urls for processing")
+def processBBCUrls(urls):
+    for url in urls:
+        try:
+            pvr_path = write_pvr_file(url)
+        except (OSError, ValueError) as e:
+            log.error(f"Failed to create PVR file for {url}: {e}")
+        else:
+            log.info(f"Created get_iplayer PVR file: {pvr_path}")
 
 
 def processNewUrls(urls):
@@ -149,10 +148,7 @@ def processNewUrls(urls):
         processPlaylistUrls(plists)
     if iplayer or radio:
         if getBBCHandlingEnabled(readConfig()):
-            if len(iplayer):
-                processIPlayerUrls(iplayer)
-            if len(radio):
-                processRadioUrls(radio)
+            processBBCUrls(iplayer + radio)
         else:
             log.info("BBC URL handling is disabled; skipping BBC URLs")
 

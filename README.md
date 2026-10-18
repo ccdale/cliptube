@@ -10,7 +10,7 @@ Current support:
 
 - YouTube videos
 - YouTube playlists
-- BBC iPlayer episode links (via the standalone iPlayer module)
+- BBC iPlayer TV and BBC Sounds radio episode/series links (written as get_iplayer PVR files)
 
 The project includes:
 
@@ -20,13 +20,12 @@ The project includes:
 ## How It Works
 
 1. `cliptube` reads clipboard history from GNOME Clipboard Indicator JSON history.
-2. New URLs are classified as video, playlist, or iPlayer.
-3. URLs are queued into a local worker.
-4. The clipboard queue worker runs:
+2. New URLs are classified as video, playlist, or BBC programme links.
+3. BBC links are written as get_iplayer PVR files when `[bbc].enabled` is true.
+4. Other URLs are queued into a local worker, which runs:
 	- `yt-dlp` for video URLs
 	- `yt-dlp -o /mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s` for playlists
-	- `iplayer.download(...)` for BBC iPlayer URLs
-5. If cliptube is interrupted, pending tasks are saved to `~/.cache/cliptube/pending_queue.json` and restored on next startup.
+5. If cliptube is interrupted, pending download tasks are saved to `~/.cache/cliptube/pending_queue.json` and restored on next startup.
 
 ## Requirements
 
@@ -90,7 +89,7 @@ Run directly with uv:
 uv run cliptube
 ```
 
-Note: `cliptube` uses the standalone `iplayer` Python module for BBC iPlayer URLs.
+BBC PVR files are written to `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr` and assigned to UID/GID `1000`.
 
 ## Systemd User Services
 
@@ -116,8 +115,8 @@ The clipboard scanner currently accepts:
 - `youtu.be/...`
 - `youtube.com/shorts/...`
 - `youtube.com/playlist?...`
-- `bbc.co.uk/iplayer/...`
-- `bbc.co.uk/sounds/play/...`
+- `bbc.co.uk/iplayer/episodes/...` and `bbc.co.uk/iplayer/episode/...`
+- `bbc.co.uk/sounds/brand/...` and `bbc.co.uk/sounds/play/...`
 
 ## Testing And Linting
 

@@ -9,19 +9,24 @@
 
 ## 2. Generate get_iplayer PVR files
 
-- [ ] Replace the current BBC download response with generation of `get_iplayer` PVR files.
-- [ ] Determine whether each BBC URL represents a single episode or a series, and generate the corresponding PVR definition.
-- [ ] Determine whether the requested content is TV or radio and set the PVR definition accordingly.
-- [ ] Add tests covering single episodes, series, TV, and radio.
+- [x] Replace the current BBC download response with generation of `get_iplayer` PVR files.
+- [x] Use the parser in `pvr-maker.tmp.py` as a starting point; move the reusable function into Cliptube and remove the hardcoded test URLs and top-level test execution.
+- [x] Extract the programme identifier/search string, media type (`tv` or `radio`), and whether the URL represents a series or episode.
+- [x] Generate recursive PVR entries for series and single-programme entries for episodes, following the examples below.
+- [x] Keep the search string free of labels such as `Series 3`; the correct search string lets get_iplayer's history record episodes without excluding them by series number.
+- [x] Add tests for all four example URL types, generated PVR contents, unsupported URLs, and search strings without `Series #` labels.
+- [x] Write generated files directly to `/mnt/nas/docker/get_iplayer/config/.get_iplayer/pvr`.
+- [x] Ensure generated files are owned by UID 1000 and GID 1000.
 
-## 3. Import PVR files into the get_iplayer container
+The temporary `pvr-maker.tmp.py` prototype and its hardcoded import-time test run have been removed after integration.
 
-- [ ] Update the Docker Compose setup to expose a host-side `incoming` directory to the container.
-- [ ] Add a process in the container to monitor `incoming` for new PVR files. Add Python to the image only if the existing container tools are insufficient.
-- [ ] Ensure the container user can move files from `incoming` into its PVR directory.
-- [ ] Validate each PVR file before moving it into the active PVR directory; decide how invalid files are reported or retained.
-- [ ] Confirm the existing scheduled PVR run picks up imported files without requiring a separate trigger.
-- [ ] Test import, permissions, validation failure, and scheduled-run pickup.
+## 3. Run PVR jobs in get_iplayer
+
+- [ ] Confirm the existing scheduled PVR run picks up files written directly to the mounted PVR directory without a separate trigger.
+- [ ] Verify the container can read PVR files owned by UID 1000 and GID 1000.
+- [ ] No `incoming` directory, container-side watcher, or Compose change is needed for PVR-file import.
+
+Invalid PVR files are intentionally handled manually: get_iplayer logs them, and the operator monitors the logs and removes or adjusts invalid files. Do not add automated validation or repair.
 
 ## 4. Organize completed downloads on the NAS
 
@@ -29,21 +34,19 @@
 - [ ] Identify whether each download is TV or radio before choosing its destination.
 - [ ] For TV, use `/druidshare/Video/Drama/<title> (<year>)/` and create missing series directories.
 - [ ] For radio, use `/druidshare/AudioBooks/Radio/<title>/` and create missing programme directories.
+- [ ] Investigate theTVDB as a possible source of TV series and episode metadata; do not depend on it for radio metadata.
+- [ ] Identify a suitable source for BBC radio programme titles and metadata.
 - [ ] Define how titles and years are obtained, and how existing files or name collisions are handled.
 - [ ] Test TV and radio placement, directory creation, and failure/retry behavior.
 
 ## Decisions to settle
 
-- [ ] Choose the configuration name and default for enabling BBC URL handling.
-- [ ] Define how series PVR files should select episodes and whether they should include future episodes.
-- [ ] Confirm how to identify radio versus TV reliably from BBC URLs or metadata.
-- [ ] Confirm the container's PVR directory, host/container paths, and ownership required for `incoming`.
-- [ ] Define what happens to invalid PVR files and failed post-download moves.
+- [ ] Decide how failed post-download moves are reported and retried.
 - [ ] Confirm the title/year metadata source and the exact TV directory naming convention.
 
 ## Current Docker Compose Setup
 
-Reference configuration before the changes above:
+Reference configuration. PVR files will be written to the host-mounted NAS path directly; no `incoming` volume or container watcher is planned.
 
 ```yaml
 # version: "3.8"
@@ -77,4 +80,33 @@ services:
         done
       ) &
       exec /init"
+```
+
+## Example URLs and PVR expectations
+
+### television series
+```
+https://www.bbc.co.uk/iplayer/episodes/p09fs2qh/time?seriesId=p09fs2qh-structural-3-m00316gj
+```
+The pvr file for this series would be
+```
+pid p09fs2qh
+pidrecursive 1
+type tv
+```
+Use the programme search string without a `Series #` label so get_iplayer can record all matching episodes.
+
+### television episode
+```
+https://www.bbc.co.uk/iplayer/episode/m00316gl/time-series-3-episode-1
+```
+
+### radio series
+```
+https://www.bbc.co.uk/sounds/brand/m0024fk6
+```
+
+### radio episode
+```
+https://www.bbc.co.uk/sounds/play/m0030x8z
 ```
