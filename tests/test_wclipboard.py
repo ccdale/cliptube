@@ -29,6 +29,16 @@ def test_routing_keeps_bbc_out_of_ytdlp(monkeypatch):
     assert queued.call_args_list[2].kwargs == {"vtype": "b"}
 
 
+def test_queued_log_counts_only_accepted(monkeypatch):
+    log = Mock()
+    monkeypatch.setattr(wclipboard, "log", log)
+    monkeypatch.setattr(wclipboard.localqueue, "queue_urls", lambda urls, vtype: 0)
+    wclipboard.processNewUrls(["https://youtu.be/a", "https://youtu.be/b"])
+    log.info.assert_not_called()
+    monkeypatch.setattr(wclipboard.localqueue, "queue_urls", lambda urls, vtype: 1)
+    wclipboard.processNewUrls(["https://youtu.be/a", "https://youtu.be/b"])
+    log.info.assert_called_once_with("queued 1 video urls for processing")
+
 def test_signal_handler_only_wakes_no_shutdown(monkeypatch):
     source = Mock()
     processor = Mock()

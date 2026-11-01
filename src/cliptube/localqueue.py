@@ -166,11 +166,14 @@ class LocalQueueProcessor:
         with self.lock:
             if self.stop_requested():
                 raise RuntimeError("Cannot queue work during shutdown")
+            accepted = 0
             for url in urls:
                 task = ProcessingTask(url, vtype)
                 if self.history.accept(url, task.vtype):
                     self.task_queue.put(task)
                     self._reported_empty_queue = False
+                    accepted += 1
+            return accepted
 
     def stop_requested(self):
         return self.stopping or self.stop_event.is_set()
@@ -222,7 +225,7 @@ def initialize(
 def queue_urls(urls, vtype="v"):
     if _processor is None:
         raise RuntimeError("Processor not initialized. Call initialize() first.")
-    _processor.queue_urls(urls, vtype)
+    return _processor.queue_urls(urls, vtype)
 
 
 def shutdown(timeout=5, wait_for_current=False):

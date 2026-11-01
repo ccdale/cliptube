@@ -33,9 +33,9 @@ def test_task_serialization():
 def test_queue_success_and_dedup(history):
     processor = LocalQueueProcessor(history=history)
     with patch("cliptube.localqueue.shellCommand", return_value=("", "")) as command:
-        processor.queue_urls(["https://youtu.be/abc"] * 2)
+        assert processor.queue_urls(["https://youtu.be/abc"] * 2) == 1
         processor.task_queue.join()
-        processor.queue_urls(["https://youtu.be/abc"])
+        assert processor.queue_urls(["https://youtu.be/abc"]) == 0
         assert command.call_count == 1
         assert history.records["https://youtu.be/abc"]["state"] == "done"
     processor.shutdown()

@@ -113,16 +113,20 @@ def sortUrls(urls):
     return plists, iplayer, radio, videos
 
 
+def _queue(urls, vtype, label):
+    log.debug(f"offering {len(urls)} {label} urls for local processing.")
+    accepted = localqueue.queue_urls(urls, vtype=vtype) or 0
+    if accepted:
+        log.info(f"queued {accepted} {label} urls for processing")
+    return accepted
+
+
 def processVideoUrls(videos):
-    log.debug(f"queueing {len(videos)} video urls for local processing.")
-    localqueue.queue_urls(videos, vtype="v")
-    log.info(f"queued {len(videos)} video urls for processing")
+    return _queue(videos, "v", "video")
 
 
 def processPlaylistUrls(videos):
-    log.debug(f"queueing {len(videos)} playlist urls for local processing.")
-    localqueue.queue_urls(videos, vtype="p")
-    log.info(f"queued {len(videos)} playlist urls for processing")
+    return _queue(videos, "p", "playlist")
 
 
 def processNewUrls(urls):
@@ -132,7 +136,7 @@ def processNewUrls(urls):
     if len(plists):
         processPlaylistUrls(plists)
     if iplayer or radio:
-        localqueue.queue_urls(iplayer + radio, vtype="b")
+        _queue(iplayer + radio, "b", "BBC")
 
 
 def oneOnly(pidfn):

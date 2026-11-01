@@ -218,6 +218,12 @@ class ClipSource:
         if not self._stopped.is_set() and text is not None:
             self._queue.put(text)
 
+    def _emit_changed(self, last, key, text):
+        # Polling sources re-read unchanged content; only report actual changes.
+        if text is not None and last.get(key) != text:
+            last[key] = text
+            self._emit(text)
+
     def _read(self, tool, selection):
         process = None
         key = (tool, selection)
@@ -265,9 +271,10 @@ class ClipSource:
             log.debug(message)
 
     def _poll(self, tool):
+        last = {}
         while not self._stopped.is_set():
             for selection in _selections(self.selection):
-                self._emit(self._read(tool, selection))
+                self._emit_changed(last, selection, self._read(tool, selection))
             self._stopped.wait(self.sleeptime)
 
     def _fallback(self, reason, tool):
@@ -304,9 +311,10 @@ class GnomeHistorySource(ClipSource):
             from cliptube.history import readGnomeClipIndicatorFile
 
             self.reader = lambda: readGnomeClipIndicatorFile(self.cfg)
+        last = {}
         while not self._stopped.is_set():
             try:
-                self._emit("\n".join(self.reader() or []))
+                self._emit_changed(last, "history", "\n".join(self.reader() or []))
             except (OSError, ValueError, TypeError) as exc:
                 log.warning(f"GNOME clipboard history read failed: {exc}")
             self._stopped.wait(self.sleeptime)

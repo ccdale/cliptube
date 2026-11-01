@@ -77,6 +77,31 @@ def test_wait_timeout():
     source.stop()
 
 
+def test_gnome_emits_only_on_change():
+    contents = iter([["https://example.org/a"]] * 3 + [["https://example.org/b"]])
+    source = GnomeHistorySource(sleeptime=0.01, reader=lambda: next(contents, ["https://example.org/b"]))
+    try:
+        source.start()
+        assert source.wait_for_change(1) == "https://example.org/a"
+        assert source.wait_for_change(1) == "https://example.org/b"
+        assert source.wait_for_change(0.1) is None
+    finally:
+        source.stop()
+
+
+def test_poll_emits_only_on_change(children):
+    scripts, calls = children
+    scripts["xclip"] = "import sys; sys.stdout.write('same')"
+    source = PollSource(tool="xclip", sleeptime=0.01)
+    try:
+        source.start()
+        assert source.wait_for_change(2) == "same"
+        assert source.wait_for_change(0.3) is None
+        assert len(calls) > 1
+    finally:
+        source.stop()
+
+
 def test_gnome_passes_selected_config_to_reader(monkeypatch):
     from cliptube import history
 
