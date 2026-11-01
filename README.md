@@ -186,6 +186,10 @@ The clipboard scanner currently accepts:
 - `bbc.co.uk/iplayer/episodes/...` and `bbc.co.uk/iplayer/episode/...`
 - `bbc.co.uk/sounds/brand/...` and `bbc.co.uk/sounds/play/...`
 
+For an individual video from a playlist, copy that video's URL. To download the
+whole playlist, open the playlist page and copy its URL. A video URL may include
+both `v=` and `list=` parameters; it is treated as an individual video.
+
 ## Testing And Linting
 
 ```bash
