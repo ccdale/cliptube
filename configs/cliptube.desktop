@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=cliptube
-Comment=watch the clipboard for youtube urls
-Icon=/home/chris/.local/share/image/cliptube.png
-Exec=/home/chris/.local/bin/cliptube
-Path=/
-Categories=Network
-X-Desktop-File-Install-Version=0.26
