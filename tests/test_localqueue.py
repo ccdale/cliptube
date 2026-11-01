@@ -41,6 +41,19 @@ def test_queue_success_and_dedup(history):
     processor.shutdown()
 
 
+def test_video_title_is_persisted_when_done(history):
+    processor = LocalQueueProcessor(history=history)
+    url = "https://youtu.be/abc"
+    output = ('[Merger] Merging formats into "/downloads/A video title.mkv"\n', "")
+    with patch("cliptube.localqueue.shellCommand", return_value=output):
+        processor.queue_urls([url])
+        processor.task_queue.join()
+    processor.shutdown()
+    assert history.records[url]["state"] == "done"
+    assert history.records[url]["title"] == "A video title"
+    assert HistoryStore(history.path).records[url]["title"] == "A video title"
+
+
 def test_failed_is_logged_and_not_retried(history):
     processor = LocalQueueProcessor(history=history)
     url = "https://youtu.be/fail"

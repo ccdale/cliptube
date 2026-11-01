@@ -3,6 +3,7 @@
 import subprocess
 import threading
 import time
+from pathlib import Path
 from queue import Queue
 
 from cliptube import log
@@ -87,6 +88,7 @@ class URLProcessorWorker(threading.Thread):
         if self.processor.stop_requested():
             log.info(f"Interrupted {task.url}, will retry on restart")
             return
+        title = None
         try:
             if task.vtype == "b":
                 cfg = readConfig()
@@ -111,6 +113,8 @@ class URLProcessorWorker(threading.Thread):
                 filename = getMergerOutputFilename(sout, serr)
                 if filename:
                     log.info(filename)
+                    if task.vtype == "v":
+                        title = Path(filename).stem
         except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
             with self.processor.lock:
                 interrupted = self.processor.stop_requested()
@@ -126,7 +130,8 @@ class URLProcessorWorker(threading.Thread):
             if interrupted:
                 log.info(f"Interrupted {task.url}, will retry on restart")
             else:
-                history.transition(task.url, "done")
+                details = {"title": title} if title else {}
+                history.transition(task.url, "done", **details)
                 log.info(f"Successfully processed {task.url}")
 
 
