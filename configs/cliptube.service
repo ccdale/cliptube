@@ -8,4 +8,5 @@ WantedBy=default.target
 TimeoutStopSec=10
 KillMode=control-group
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/chris/.local/bin/cliptube
+WorkingDirectory=/home/chris/src/cliptube
+ExecStart=/usr/bin/uv run cliptube
