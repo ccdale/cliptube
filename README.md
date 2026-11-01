@@ -153,6 +153,10 @@ Service templates are in:
 
 - `configs/cliptube.service`
 
+The service template's `WorkingDirectory` is set to `/home/chris/src/cliptube`.
+This is specific to the maintainer's machine; update it to the repository checkout
+path before installing the service elsewhere.
+
 On SIGTERM/SIGINT, Cliptube stops accepting work, sends SIGTERM to each download's
 dedicated process group, then SIGKILL after a two-second grace period if necessary.
 This includes yt-dlp's ffmpeg children even if the yt-dlp process has already exited.
