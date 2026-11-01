@@ -12,9 +12,9 @@ from cliptube import (
     localqueue,
     log,
 )
-from cliptube.config import getBBCHandlingEnabled, getBBCPvrDirectory, readConfig
-from cliptube.history import getNewUrls
-from cliptube.pvr import is_bbc_programme_url, write_pvr_file
+from cliptube.config import readConfig
+from cliptube.history import HistoryStore, extract_urls
+from cliptube.pvr import is_bbc_programme_url
 
 ccalogging.setConsoleOut()
 # logfile = os.path.abspath(os.path.expanduser(f"~/log/{__appname__}.log"))
@@ -24,6 +24,7 @@ ccalogging.setInfo()
 
 # Global processor reference for signal handler access
 processor = None
+source = None
 
 # exitflag = False
 ev = Event()
@@ -38,65 +39,59 @@ def interruptWP(signrcvd, frame):
     """Handle SIGINT/SIGTERM by interrupting subprocesses and gracefully shutting down."""
     signame = "SIGINT" if signrcvd == SIGINT else "SIGTERM"
     log.info(f"Received {signame}, initiating graceful shutdown with subprocess interruption...")
-    if processor:
-        # Force shutdown: interrupt running subprocesses and save state
-        processor.shutdown(timeout=5, wait_for_current=False, force=True)
     ev.set()
+    if source is not None:
+        source.wake()
 
 
 # if we get a `ctrl-c` from the keyboard, stop immediately
 # by going to the interruptCT above
-signal(SIGINT, interruptWP)
-signal(SIGTERM, interruptWP)
+def watchClipboard():
+    global processor, source
+    from cliptube.clipsource import select_source
+    from cliptube.config import getClipboardConfig
 
-
-def checkForNewUrls():
-    urls = getNewUrls() or []
-    if len(urls):
-        log.debug(f"watchclipboard: {len(urls)} new urls found")
-        processNewUrls(urls)
-
-
-def watchGnomeClipboard():
-    global processor
+    pidfn = "/tmp/cliptube.pid"
+    owns_pid = False
+    ev.clear()
+    signal(SIGINT, interruptWP)
+    signal(SIGTERM, interruptWP)
     try:
-        pidfn = "/tmp/cliptube.pid"
         oneOnly(pidfn)
+        owns_pid = True
         log.info(f"{__appname__} {__version__} starting - Interrupt to exit")
         cfg = readConfig()
-        # Initialize the local queue processor
-        processor = localqueue.initialize(num_workers=1, restore_from_cache=True)
+        options = getClipboardConfig(cfg)
+        history = HistoryStore(historydays=options.historydays)
+        source = select_source(cfg)
+        processor = localqueue.initialize(
+            num_workers=1, history=history, on_failure=source.wake, stop_event=ev,
+        )
+        source.start()
         while not ev.is_set():
-            checkForNewUrls()
-            log.debug(f"sleeping for {cfg['gnomeclipindicator']['sleeptime']} seconds")
-            ev.wait(float(cfg["gnomeclipindicator"]["sleeptime"]))
-        # final check before exiting
-        log.info("Final check for urls before shutting down")
-        checkForNewUrls()
-        # Gracefully shutdown the processor
-        if processor:
-            processor.shutdown(timeout=90, wait_for_current=True, force=False)
-        if os.path.exists(pidfn):
-            try:
-                os.unlink(pidfn)
-            except OSError as e:
-                log.error(f"Error deleting pid file: {e}")
-        log.info(f"{__appname__} closing down, bye.")
+            text = source.wait_for_change(None)
+            if processor.failed.is_set():
+                raise RuntimeError("Download worker failed; check the error log")
+            if ev.is_set():
+                break
+            if text:
+                processNewUrls(extract_urls(text))
     except Exception as e:  # noqa: BLE001
-        if os.path.exists(pidfn):
-            try:
-                os.unlink(pidfn)
-            except OSError as cleanup_err:
-                log.error(
-                    f"Error deleting pid file during exception handling: {cleanup_err}"
-                )
-        # Ensure processor shutdown even on error with forced subprocess interruption
-        if processor:
-            try:
-                processor.shutdown(timeout=5, wait_for_current=False, force=True)
-            except Exception as shutdown_err:  # noqa: BLE001
-                log.error(f"Error during processor shutdown: {shutdown_err}")
         errorExit(sys.exc_info()[2], e)
+    finally:
+        # Stop downloads before waiting on clipboard helpers.
+        try:
+            try:
+                localqueue.shutdown(timeout=3)
+            finally:
+                processor = None
+                if source is not None:
+                    source.stop()
+        finally:
+            source = None
+            if owns_pid and os.path.exists(pidfn):
+                os.unlink(pidfn)
+        log.info(f"{__appname__} closing down, bye.")
 
 
 def sortUrls(urls):
@@ -130,16 +125,6 @@ def processPlaylistUrls(videos):
     log.info(f"queued {len(videos)} playlist urls for processing")
 
 
-def processBBCUrls(urls, output_directory):
-    for url in urls:
-        try:
-            pvr_path = write_pvr_file(url, output_directory=output_directory)
-        except (OSError, ValueError) as e:
-            log.error(f"Failed to create PVR file for {url}: {e}")
-        else:
-            log.info(f"Created get_iplayer PVR file: {pvr_path}")
-
-
 def processNewUrls(urls):
     plists, iplayer, radio, videos = sortUrls(urls)
     if len(videos):
@@ -147,11 +132,7 @@ def processNewUrls(urls):
     if len(plists):
         processPlaylistUrls(plists)
     if iplayer or radio:
-        cfg = readConfig()
-        if getBBCHandlingEnabled(cfg):
-            processBBCUrls(iplayer + radio, getBBCPvrDirectory(cfg))
-        else:
-            log.info("BBC URL handling is disabled; skipping BBC URLs")
+        localqueue.queue_urls(iplayer + radio, vtype="b")
 
 
 def oneOnly(pidfn):

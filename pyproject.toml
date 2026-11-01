@@ -1,6 +1,6 @@
 [project]
 name = "cliptube"
-version = "2.0.44"
+version = "2.0.45"
 description = "tool to download youtube videos from the clipboard."
 authors = [{ name = "ccdale", email = "chris.charles.allison+cliptube@gmail.com" }]
 requires-python = ">=3.11,<4"
@@ -14,14 +14,10 @@ classifiers = [
 ]
 dependencies = [
     "ccalogging",
-    "iplayer",
 ]
 
-[tool.uv.sources]
-iplayer = { path = "../iplayer" }
-
 [project.scripts]
-cliptube = "cliptube.wclipboard:watchGnomeClipboard"
+cliptube = "cliptube.wclipboard:watchClipboard"
 
 [dependency-groups]
 dev = ["pytest", "ruff"]

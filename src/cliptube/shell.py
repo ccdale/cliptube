@@ -21,11 +21,10 @@
 
 import os
 import re
+import signal
 import subprocess
-import sys
+import time
 from subprocess import CalledProcessError
-
-from cliptube import errorRaise
 
 
 class InvalidCommandType(TypeError):
@@ -54,37 +53,43 @@ def shellCommand(cmd, canfail=False, process_callback=None):
     returns a tuple of (stdout, stderr)
     raises an exception if subprocess returns a non-zero exitcode
     """
-    ret = None
-    proc = None
-    try:
-        cmd = listCmd(cmd)
-        # Use Popen instead of run() to track and manage the process
-        proc = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        # Notify caller of the process object for potential interruption
+    cmd = listCmd(cmd)
+    with subprocess.Popen(
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        start_new_session=True,
+    ) as proc:
         if process_callback is not None:
             process_callback(proc)
         stdout, stderr = proc.communicate()
         if not canfail and proc.returncode != 0:
-            ret = type("obj", (object,), {"returncode": proc.returncode, "stdout": stdout, "stderr": stderr})()
-            ret.check_returncode = lambda: proc.check_returncode()
-            raise CalledProcessError(proc.returncode, cmd)
+            raise CalledProcessError(proc.returncode, cmd, stdout, stderr)
         return (stdout, stderr)
-    except CalledProcessError as e:
-        stdout_text = stdout if proc else "N/A"
-        stderr_text = stderr if proc else "N/A"
-        msg = f"ERROR: {stderr_text}\nstdout: {stdout_text}"
-        msg += f"\nCommand was:\n{' '.join(cmd)}"
-        print(msg)
-        errorRaise(sys.exc_info()[2], e)
-    except (InvalidCommandType, OSError, TypeError, ValueError) as e:
-        stdout_text = stdout if proc else "N/A"
-        stderr_text = stderr if proc else "N/A"
-        msg = f"ERROR: {stderr_text}\nstdout: {stdout_text}"
-        msg += f"\nCommand was:\n{' '.join(cmd)}"
-        print(msg)
-        errorRaise(sys.exc_info()[2], e)
+
+
+def terminate_process_groups(processes, grace=2):
+    """Terminate dedicated child groups, including descendants of exited leaders."""
+    groups = {proc.pid for proc in processes}
+    for pgid in groups:
+        try:
+            os.killpg(pgid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+    deadline = time.monotonic() + grace
+    while groups and time.monotonic() < deadline:
+        for proc in processes:
+            proc.poll()
+        for pgid in tuple(groups):
+            try:
+                os.killpg(pgid, 0)
+            except ProcessLookupError:
+                groups.remove(pgid)
+        if groups:
+            time.sleep(min(0.05, max(0, deadline - time.monotonic())))
+    for pgid in groups:
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
 
 
 def getMergerOutputLine(stdout, stderr):

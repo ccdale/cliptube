@@ -1,417 +1,232 @@
-#
-# Copyright (c) 2023-2024, Chris Allison
-#
-#     This file is part of cliptube.
-#
-#     cliptube is free software: you can redistribute it and/or modify
-#     it under the terms of the GNU General Public License as published by
-#     the Free Software Foundation, either version 3 of the License, or
-#     (at your option) any later version.
-#
-#     cliptube is distributed in the hope that it will be useful,
-#     but WITHOUT ANY WARRANTY; without even the implied warranty of
-#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#     GNU General Public License for more details.
-#
-#     You should have received a copy of the GNU General Public License
-#     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
-#
+"""Sequential downloads with durable task state and bounded process-group shutdown."""
 
-"""Local queue-based URL processor with background worker thread."""
-
-import json
-import os
 import subprocess
-import sys
 import threading
-from pathlib import Path
-from queue import Empty, Queue
+import time
+from queue import Queue
 
-import iplayer
-
-from cliptube import errorNotify, log
-from cliptube.config import expandPath, getYtDlpBin
-from cliptube.shell import getMergerOutputFilename, getMergerOutputLine, shellCommand
-
-
-def get_cache_path():
-    """Return the cache file path for pending queue items."""
-    cache_dir = expandPath("~/.cache/cliptube")
-    Path(cache_dir).mkdir(parents=True, exist_ok=True)
-    return os.path.join(cache_dir, "pending_queue.json")
+from cliptube import log
+from cliptube.config import (
+    getBBCHandlingEnabled,
+    getBBCPvrDirectory,
+    getYtDlpBin,
+    readConfig,
+)
+from cliptube.history import HistoryStore, task_type
+from cliptube.pvr import write_pvr_file
+from cliptube.shell import (
+    getMergerOutputFilename,
+    getMergerOutputLine,
+    shellCommand,
+    terminate_process_groups,
+)
 
 
 def get_merger_output_line(stdout, stderr):
-    """Return the last yt-dlp merger line from stdout/stderr, if present."""
     return getMergerOutputLine(stdout, stderr)
 
 
 class ProcessingTask:
-    """Represents a single URL processing task."""
-
     def __init__(self, url, vtype="v"):
-        """
-        Initialize a processing task.
-
-        Args:
-            url: The URL to process
-            vtype: Type of content ('v' for video, 'p' for playlist, 'i' for iplayer,
-                'r' for radio)
-        """
         self.url = url
-        self.vtype = vtype
+        self.vtype = "b" if vtype in {"i", "r"} else vtype
 
     def __repr__(self):
         return f"ProcessingTask(url={self.url[:50]}..., vtype={self.vtype})"
 
     def to_dict(self):
-        """Convert task to a dictionary for serialization."""
         return {"url": self.url, "vtype": self.vtype}
 
     @classmethod
     def from_dict(cls, data):
-        """Create a task from a dictionary."""
-        return cls(url=data["url"], vtype=data["vtype"])
+        return cls(data["url"], data.get("vtype", task_type(data["url"])))
 
 
 class URLProcessorWorker(threading.Thread):
-    """Background worker thread that processes URLs from a queue."""
-
-    def __init__(self, task_queue, on_task_finished=None):
-        """
-        Initialize the worker thread.
-
-        Args:
-            task_queue: The Queue.Queue to pull tasks from
-        """
+    def __init__(self, processor):
         super().__init__(daemon=True)
-        self.task_queue = task_queue
-        self.on_task_finished = on_task_finished
-        self.running = True
+        self.processor = processor
         self.current_task = None
         self.current_process = None
-        self._process_lock = threading.Lock()
 
     def run(self):
-        """Process tasks from the queue until stopped."""
-        while self.running:
+        while True:
+            task = self.processor.task_queue.get()
             try:
-                task = self.task_queue.get(timeout=1)
-                if task is None:  # Sentinel value for shutdown
-                    break
+                if task is None:
+                    return
+                with self.processor.lock:
+                    if self.processor.stop_requested():
+                        return
+                    self.current_task = task
                 self._process_task(task)
-            except Empty:
-                # Queue timeout is expected - just continue waiting
-                continue
-
-    def _process_task(self, task):
-        """
-        Process a single task by running the appropriate command.
-
-        Args:
-            task: A ProcessingTask object
-        """
-        try:
-            # Track current task for potential recovery on shutdown
-            with self._process_lock:
-                self.current_task = task
-                self.current_process = None
-
-            log.debug(f"Processing {task}")
-            ytdlp_bin = getYtDlpBin()
-            if task.vtype == "i":
-                # BBC iPlayer processing uses the standalone iplayer module.
-                completed = iplayer.download(task.url)
-                cmd = completed.args
-                sout = completed.stdout
-                serr = completed.stderr
-            elif task.vtype == "r":
-                radio_dir = expandPath("~/radio")
-                Path(radio_dir).mkdir(parents=True, exist_ok=True)
-                cmd = ["get_iplayer", "--type=radio", "--output", radio_dir, task.url]
-                sout, serr = shellCommand(cmd, process_callback=self._store_process)
-            elif task.vtype == "p":
-                # yt-dlp for playlists, organized by playlist name
-                output_template = (
-                    "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s"
-                )
-                cmd = [ytdlp_bin, "-o", output_template, task.url]
-                sout, serr = shellCommand(cmd, process_callback=self._store_process)
-            else:
-                # yt-dlp for videos
-                cmd = [ytdlp_bin, task.url]
-                sout, serr = shellCommand(cmd, process_callback=self._store_process)
-
-            log.info(f"Running command: {' '.join(cmd)}")
-            log.debug(f"Command stdout: {sout}")
-            if serr:
-                log.warning(f"Command stderr: {serr}")
-            merger_filename = getMergerOutputFilename(sout, serr)
-            if merger_filename is not None:
-                log.info(merger_filename)
-            log.info(f"Successfully processed {task.url}")
-        except (
-            OSError,
-            RuntimeError,
-            TypeError,
-            ValueError,
-            KeyError,
-            subprocess.CalledProcessError,
-            iplayer.IPlayerUrlError,
-        ) as e:
-            log.error(f"Failed to process {task.url}: {e}")
-            errorNotify(sys.exc_info()[2], e)
-        finally:
-            with self._process_lock:
-                self.current_task = None
-                self.current_process = None
-            self.task_queue.task_done()
-            if self.on_task_finished is not None:
-                self.on_task_finished()
+            except Exception:  # noqa: BLE001
+                # Persistence failures must stop processing, not silently lose state.
+                log.exception("Worker stopped after an unexpected error")
+                self.processor.failed.set()
+                if self.processor.on_failure:
+                    self.processor.on_failure()
+                return
+            finally:
+                with self.processor.lock:
+                    self.current_task = None
+                    self.current_process = None
+                self.processor.task_queue.task_done()
+                self.processor._log_queue_length()
 
     def _store_process(self, proc):
-        """Store reference to running process for potential interruption."""
-        with self._process_lock:
+        with self.processor.lock:
             self.current_process = proc
+            stopping = self.processor.stop_requested()
+        if stopping:
+            terminate_process_groups([proc], grace=0)
 
-    def interrupt(self):
-        """Interrupt the currently running process if any."""
-        with self._process_lock:
-            if self.current_process and self.current_process.poll() is None:
-                try:
-                    self.current_process.terminate()
-                    # Give it a moment to terminate gracefully
-                    self.current_process.wait(timeout=2)
-                except (ProcessLookupError, subprocess.TimeoutExpired):
-                    # If terminate didn't work, force kill
-                    try:
-                        self.current_process.kill()
-                    except ProcessLookupError:
-                        pass  # Process already gone
-                log.info("Interrupted running process")
-
-    def stop(self):
-        """Signal the worker to stop."""
-        self.running = False
+    def _process_task(self, task):
+        history = self.processor.history
+        history.transition(task.url, "running")
+        if self.processor.stop_requested():
+            log.info(f"Interrupted {task.url}, will retry on restart")
+            return
+        try:
+            if task.vtype == "b":
+                cfg = readConfig()
+                if not getBBCHandlingEnabled(cfg):
+                    log.info("BBC URL handling is disabled; skipping BBC URLs")
+                    history.transition(task.url, "done", outcome="disabled")
+                    return
+                path = write_pvr_file(task.url, output_directory=getBBCPvrDirectory(cfg))
+                log.info(f"Created get_iplayer PVR file: {path}")
+            else:
+                cmd = [getYtDlpBin()]
+                if task.vtype == "p":
+                    cmd.extend([
+                        "-o", "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s",
+                    ])
+                cmd.append(task.url)
+                log.info(f"Running command: {' '.join(cmd)}")
+                sout, serr = shellCommand(cmd, process_callback=self._store_process)
+                log.debug(f"Command stdout: {sout}")
+                if serr:
+                    log.warning(f"Command stderr: {serr}")
+                filename = getMergerOutputFilename(sout, serr)
+                if filename:
+                    log.info(filename)
+        except (OSError, RuntimeError, ValueError, subprocess.CalledProcessError) as exc:
+            with self.processor.lock:
+                interrupted = self.processor.stop_requested()
+            if interrupted:
+                log.info(f"Interrupted {task.url}, will retry on restart")
+            else:
+                code = getattr(exc, "returncode", None)
+                log.error(f"Failed to process {task.url}: exit code {code}: {exc}")
+                history.transition(task.url, "failed", error=str(exc), exitcode=code)
+        else:
+            with self.processor.lock:
+                interrupted = self.processor.stop_requested()
+            if interrupted:
+                log.info(f"Interrupted {task.url}, will retry on restart")
+            else:
+                history.transition(task.url, "done")
+                log.info(f"Successfully processed {task.url}")
 
 
 class LocalQueueProcessor:
-    """
-    Manages a queue and worker thread(s) for local URL processing.
-    Supports cache persistence for unprocessed items on shutdown.
-    """
-
-    def __init__(self, num_workers=1, restore_from_cache=True):
-        """
-        Initialize the processor.
-
-        Args:
-            num_workers: Number of worker threads (default: 1, sequential processing)
-            restore_from_cache: Whether to restore pending items from cache (default: True)
-        """
+    def __init__(
+        self, num_workers=1, restore_from_cache=True, history=None,
+        on_failure=None, stop_event=None,
+    ):
         self.task_queue = Queue()
-        self.cache_path = get_cache_path()
+        self.history = history if history is not None else HistoryStore()
+        self.lock = threading.Lock()
+        self.stopping = False
+        self.closed = False
+        self.failed = threading.Event()
+        self.on_failure = on_failure
+        self.stop_event = stop_event if stop_event is not None else threading.Event()
         self._queue_length_lock = threading.Lock()
         self._reported_empty_queue = False
         self.workers = []
-
-        # Restore from cache if available and requested
         if restore_from_cache:
-            self._load_from_cache()
-
+            for record in self.history.pending():
+                self.task_queue.put(ProcessingTask.from_dict(record))
         for _ in range(num_workers):
-            worker = URLProcessorWorker(
-                self.task_queue, on_task_finished=self._log_queue_length
-            )
-            worker.start()
+            worker = URLProcessorWorker(self)
             self.workers.append(worker)
-        log.debug(f"Started {num_workers} URL processor worker(s)")
+            worker.start()
 
     def _log_queue_length(self):
-        """Log pending queue length after a task finishes without spamming empty state."""
-        queue_length = self.task_queue.qsize()
+        length = self.task_queue.qsize()
         with self._queue_length_lock:
-            if queue_length == 0:
-                if self._reported_empty_queue:
-                    return
-                self._reported_empty_queue = True
-            else:
-                self._reported_empty_queue = False
-            log.info(f"Queue length: {queue_length}")
-
-    def _load_from_cache(self):
-        """Load pending tasks from cache if it exists."""
-        if os.path.exists(self.cache_path):
-            try:
-                with open(self.cache_path, "r") as f:
-                    cached_tasks = json.load(f)
-                count = 0
-                for task_data in cached_tasks:
-                    task = ProcessingTask.from_dict(task_data)
-                    self.task_queue.put(task)
-                    count += 1
-                log.info(f"Restored {count} tasks from cache: {self.cache_path}")
-                os.remove(self.cache_path)
-            except (
-                json.JSONDecodeError,
-                OSError,
-                TypeError,
-                ValueError,
-                KeyError,
-            ) as e:
-                log.error(f"Failed to restore tasks from cache: {e}")
-                errorNotify(sys.exc_info()[2], e)
-
-    def _save_to_cache(self):
-        """Save pending and current tasks to cache for later recovery."""
-        try:
-            tasks = []
-
-            # First, save any currently running tasks (they were interrupted)
-            current_tasks = self.get_current_tasks()
-            for task in current_tasks:
-                tasks.append(task.to_dict())
-                log.info(f"Saving interrupted task to cache: {task.url}")
-
-            # Then drain the queue into a list
-            while not self.task_queue.empty():
-                try:
-                    task = self.task_queue.get_nowait()
-                    if task is not None:  # Skip sentinel values
-                        tasks.append(task.to_dict())
-                except Empty:
-                    break
-
-            if tasks:
-                with open(self.cache_path, "w") as f:
-                    json.dump(tasks, f, indent=2)
-                log.info(f"Saved {len(tasks)} tasks to cache: {self.cache_path}")
-            else:
-                # Clean up empty cache file if it exists
-                if os.path.exists(self.cache_path):
-                    os.remove(self.cache_path)
-        except (OSError, TypeError, ValueError) as e:
-            log.error(f"Failed to save tasks to cache: {e}")
-            errorNotify(sys.exc_info()[2], e)
+            if length == 0 and self._reported_empty_queue:
+                return
+            self._reported_empty_queue = length == 0
+            log.info(f"Queue length: {length}")
 
     def queue_urls(self, urls, vtype="v"):
-        """
-        Queue multiple URLs for processing.
+        with self.lock:
+            if self.stop_requested():
+                raise RuntimeError("Cannot queue work during shutdown")
+            for url in urls:
+                task = ProcessingTask(url, vtype)
+                if self.history.accept(url, task.vtype):
+                    self.task_queue.put(task)
+                    self._reported_empty_queue = False
 
-        Args:
-            urls: List of URL strings
-            vtype: Type of content ('v', 'p', or 'i')
-        """
-        if urls:
-            with self._queue_length_lock:
-                self._reported_empty_queue = False
-        for url in urls:
-            task = ProcessingTask(url, vtype=vtype)
-            self.task_queue.put(task)
-            log.debug(f"Queued: {task}")
+    def stop_requested(self):
+        return self.stopping or self.stop_event.is_set()
 
     def interrupt_all(self):
-        """Interrupt all running subprocesses (for SIGTERM handling)."""
-        log.info("Interrupting all running subprocesses...")
-        for worker in self.workers:
-            worker.interrupt()
+        with self.lock:
+            processes = [
+                worker.current_process for worker in self.workers
+                if worker.current_process is not None
+            ]
+        terminate_process_groups(processes)
 
-    def get_current_tasks(self):
-        """Get all tasks currently being processed by workers."""
-        current = []
-        for worker in self.workers:
-            with worker._process_lock:
-                if worker.current_task is not None:
-                    current.append(worker.current_task)
-        return current
+    def shutdown(self, timeout=5, wait_for_current=False, force=True):
+        """Stop once, preserving pending/running entries already on disk.
 
-    def shutdown(self, timeout=None, wait_for_current=True, force=False):
+        Legacy wait/force arguments remain accepted; shutdown never drains work.
         """
-        Gracefully shut down, allowing current job to finish then saving pending items.
-
-        Args:
-            timeout: Maximum seconds to wait for current task to finish
-            wait_for_current: If True, wait for current job to finish before saving cache.
-                              If False, save immediately (faster shutdown).
-            force: If True, interrupt running processes immediately
-        """
-        log.info("URL processor shutting down...")
-
-        if force:
-            log.info("Force shutdown: interrupting running subprocesses")
-            self.interrupt_all()
-
-        if wait_for_current and not force:
-            # Wait for the current job to finish (with timeout)
-            log.info("Waiting for current task to complete...")
-            self.task_queue.join()
-            log.debug("Current task complete")
-        else:
-            log.debug(
-                "Skipping wait for current task, saving pending items immediately"
-            )
-
-        # Save remaining tasks to cache (including current tasks if interrupted)
-        self._save_to_cache()
-
-        # Stop the workers
-        log.debug("Stopping workers...")
+        with self.lock:
+            if self.closed:
+                return
+            self.stopping = True
+            self.stop_event.set()
+            self.closed = True
+        self.interrupt_all()
+        for _ in self.workers:
+            self.task_queue.put(None)
+        deadline = time.monotonic() + (5 if timeout is None else timeout)
         for worker in self.workers:
-            self.task_queue.put(None)  # Sentinel to signal worker to exit
-            worker.stop()
-        for worker in self.workers:
-            worker.join(timeout=timeout)
-        log.info("URL processor shut down complete")
+            worker.join(max(0, deadline - time.monotonic()))
+            if worker.is_alive():
+                log.error(f"Worker {worker.name} did not stop within the shutdown deadline")
+        log.info("URL processor shut down; unfinished tasks retained in history")
 
 
-# Global processor instance
 _processor = None
 
 
-def initialize(num_workers=1, restore_from_cache=True):
-    """
-    Initialize the global URL processor.
-
-    Args:
-        num_workers: Number of worker threads
-        restore_from_cache: Whether to restore pending items from cache on startup
-
-    Returns:
-        The initialized LocalQueueProcessor instance
-    """
+def initialize(
+    num_workers=1, restore_from_cache=True, history=None, on_failure=None, stop_event=None,
+):
     global _processor
     if _processor is None:
         _processor = LocalQueueProcessor(
-            num_workers=num_workers, restore_from_cache=restore_from_cache
+            num_workers, restore_from_cache, history, on_failure, stop_event
         )
     return _processor
 
 
 def queue_urls(urls, vtype="v"):
-    """
-    Queue URLs for local processing.
-
-    Args:
-        urls: List of URL strings
-        vtype: Type of content ('v' for video, 'p' for playlist, 'i' for iplayer)
-
-    Raises:
-        RuntimeError: If processor not initialized
-    """
     if _processor is None:
         raise RuntimeError("Processor not initialized. Call initialize() first.")
-    _processor.queue_urls(urls, vtype=vtype)
+    _processor.queue_urls(urls, vtype)
 
 
-def shutdown(timeout=None, wait_for_current=True):
-    """
-    Gracefully shut down the processor.
-
-    Args:
-        timeout: Maximum seconds to wait for current task to finish
-        wait_for_current: If True, wait for current job to finish. If False, save immediately.
-    """
+def shutdown(timeout=5, wait_for_current=False):
     global _processor
     if _processor is not None:
-        _processor.shutdown(timeout=timeout, wait_for_current=wait_for_current)
+        _processor.shutdown(timeout=timeout)
         _processor = None

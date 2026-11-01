@@ -22,12 +22,69 @@
 import configparser
 import os
 import sys
+from dataclasses import dataclass
+from math import isfinite
 from pathlib import Path
 
 from cliptube import __appname__, errorRaise
 from cliptube.pvr import DEFAULT_PVR_DIRECTORY
 
 DEFAULT_YTDLP_BIN = "/home/chris/bin/yt-dlp"
+
+
+@dataclass(frozen=True)
+class ClipboardSettings:
+    backend: str = "gnome"
+    selection: str = "clipboard"
+    sleeptime: float = 1.0
+    historydays: int = 365
+
+
+def getHistoryDays(cfg=None):
+    """Return retention for completed history entries; zero prunes all completed entries."""
+    if cfg is None:
+        cfg = readConfig()
+    try:
+        days = cfg.getint("clipboard", "historydays", fallback=365)
+    except ValueError as e:
+        raise ValueError("[clipboard] historydays must be a non-negative integer") from e
+    if days < 0:
+        raise ValueError("[clipboard] historydays must be a non-negative integer")
+    return days
+
+
+def getClipboardSettings(cfg=None):
+    """Validate clipboard settings, preserving the legacy GNOME default."""
+    if cfg is None:
+        cfg = readConfig()
+    backend = cfg.get("clipboard", "backend", fallback="gnome").strip().lower()
+    selection = cfg.get("clipboard", "selection", fallback="clipboard").strip().lower()
+    if backend not in {"gnome", "auto", "wayland", "x11", "poll"}:
+        raise ValueError("[clipboard] backend must be gnome, auto, wayland, x11 or poll")
+    if selection not in {"clipboard", "primary", "both"}:
+        raise ValueError("[clipboard] selection must be clipboard, primary or both")
+    return ClipboardSettings(
+        backend, selection, getClipboardSleepTime(cfg), getHistoryDays(cfg)
+    )
+
+
+def getClipboardConfig(cfg=None):
+    """Return clipboard settings (application-facing alias)."""
+    return getClipboardSettings(cfg)
+
+
+def getClipboardSleepTime(cfg=None, *, gnome=False):
+    """Return a finite positive polling interval for the selected section."""
+    if cfg is None:
+        cfg = readConfig()
+    section = "gnomeclipindicator" if gnome else "clipboard"
+    try:
+        interval = cfg.getfloat(section, "sleeptime", fallback=5.0 if gnome else 1.0)
+    except ValueError as e:
+        raise ValueError(f"[{section}] sleeptime must be a finite positive number") from e
+    if not isfinite(interval) or interval <= 0:
+        raise ValueError(f"[{section}] sleeptime must be a finite positive number")
+    return interval
 
 
 class ConfigFileNotFound(Exception):

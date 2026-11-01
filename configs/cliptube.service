@@ -5,5 +5,7 @@ Description=Clipboard watcher
 WantedBy=default.target
 
 [Service]
+TimeoutStopSec=10
+KillMode=control-group
 Environment=PYTHONUNBUFFERED=1
 ExecStart=/home/chris/.local/bin/cliptube

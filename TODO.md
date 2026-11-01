@@ -1,12 +1,13 @@
 # TODO: event-driven clipboard watching
 
 Replace history-file polling with a blocking clipboard watcher, so the idle process
-makes zero wake-ups and never misses a copy. Polling stays as the fallback.
+makes no timed idle wake-ups. Polling stays as the fallback.
 
 ## Goals
 
 - Zero CPU while idle: block in the kernel until the clipboard changes.
-- No missed copies (a URL replaced within one poll interval is currently lost).
+- Reduce missed copies compared with periodic polling. Clipboard protocols and
+  delayed X11 reads can still miss rapidly overwritten contents.
 - Works on GNOME, XFCE and Wayland compositors without a backend per desktop.
 - Clean, fast shutdown on SIGTERM (systemd), with no orphaned watcher child.
 - Existing GNOME `clipboard-indicator` polling remains the default until the new
@@ -40,8 +41,9 @@ keeps its current keys.
 `selection` is a tertiary option, defaulting to `clipboard`. `primary` is the
 select-to-copy buffer; `both` watches each and funnels them into the same queue.
 It is ignored by the `gnome` backend, which only has the extension's history.
-Wayland uses `wl-paste --primary`; X11 uses `clipnotify -s primary` and
-`xclip -selection primary`.
+Wayland uses `wl-paste --primary`. X11 uses flagless `clipnotify` (compatible
+with older releases) and reads the requested selection with
+`xclip -selection primary` or `clipboard`.
 
 ## History file (cumulative, with completion state)
 
@@ -63,6 +65,8 @@ States and transitions:
 - `running`: a worker has started the download (set as the task is picked up).
 - `done`: the download completed successfully (exit code 0). For BBC URLs this is
   the point where the PVR file was written.
+  BBC handling disabled by configuration is explicitly recorded as `done` with
+  `outcome = disabled` (deliberately skipped, not downloaded).
 - `failed`: the command exited non-zero or the PVR write failed.
 
 ### Behaviour
@@ -95,7 +99,8 @@ States and transitions:
 ### Module layout
 
 - New `src/cliptube/clipsource.py` holding a small interface:
-  - `class ClipSource` with `start()`, `stop()` and `wait_for_change(timeout) -> str | None`.
+  - `class ClipSource` with `start()`, `stop()`, a signal-safe `wake()`, and
+    `wait_for_change(timeout) -> str | None`.
   - Implementations: `GnomeHistorySource`, `WaylandWatchSource`, `X11NotifySource`, `PollSource`.
   - `select_source(cfg) -> ClipSource` implementing `auto` and the fallbacks.
 - `wclipboard.watchGnomeClipboard` is renamed `watchClipboard` (the `cliptube`
@@ -103,23 +108,22 @@ States and transitions:
   instead of `ev.wait(sleeptime)`.
 - `history.getNewUrls` is split so the URL-extraction and "already seen" logic
   works on a plain string as well as on the GNOME history list. Recording seen
-  URLs is unchanged.
+  URLs moves to the cumulative ledger.
 
 ### Wayland (`wl-paste --watch`)
 
 - Spawn `wl-paste --type text --watch <helper>` with `Popen`, `stdout=PIPE`.
-- `<helper>` is `cat`, so each clipboard change writes the new text to stdout.
-  Multi-line content is length-framed using `--watch sh -c 'printf "%s\0" "$(cat)"'`
-  (NUL-delimited records) to avoid splitting on newlines.
+- Use a Python helper to forward length-prefixed clipboard records.
+  Avoid shell command substitution, which changes trailing newlines.
 - A reader thread blocks on `stdout` and pushes each record onto a
-  `queue.Queue`. `wait_for_change` is `queue.get(timeout=...)`, which is a kernel
+  `queue.SimpleQueue`. The main loop uses `wait_for_change(None)`, which is a kernel
   wait and gives no idle CPU use.
 - If the child exits unexpectedly, log it and fall back to `poll` after a short
   back-off (do not busy-restart).
 
 ### X11 (`clipnotify`)
 
-- Loop: run `clipnotify -s clipboard` (blocks until the selection owner changes),
+- Loop: run `clipnotify` (blocks until a selection owner changes),
   then read with `xclip -o -selection clipboard` (or `xsel -bo`), push to the queue.
 - Run in a worker thread, with the `clipnotify` child tracked so shutdown can kill it.
 - Note that XFCE's Clipman keeps ownership of the clipboard, so `clipnotify` fires
@@ -132,8 +136,9 @@ States and transitions:
 
 ### Shutdown and signals
 
-- Keep `interruptWP` setting `ev`. Add `source.stop()` to it: terminate the
-  child (`terminate`, 2s wait, then `kill`), mirroring `LocalQueueProcessor.interrupt`.
+- `interruptWP` only sets the stop event and wakes the source. Do not perform
+  joins, history writes or process termination inside a signal handler.
+- Main-loop cleanup stops downloads and the source exactly once.
 - Start the child with `start_new_session=True` and kill its process group so
   helper processes cannot be orphaned.
 - The main loop uses `source.wait_for_change`, which `stop()` unblocks by pushing a
@@ -141,26 +146,29 @@ States and transitions:
 
 ### Fast shutdown (target: a few seconds, never 90)
 
-Cause of the 90s stop: `interruptWP` forces a shutdown, but after the loop exits
-`watchClipboard` calls `processor.shutdown(timeout=90, wait_for_current=True,
-force=False)`, which waits for the running yt-dlp to finish. Remove that wait.
+The old signal handler forced a shutdown, but the main loop then called shutdown
+again. Its `Queue.join()` waited for all unfinished work, not just the current
+download, and did not honor the supplied 90-second timeout. Remove that wait.
 
 - Every download child (yt-dlp and its ffmpeg helpers) is started with
   `start_new_session=True`, so it leads its own process group.
 - Stop sequence, one place only (`LocalQueueProcessor.interrupt_all`):
   1. `os.killpg(pgid, SIGTERM)` for each running download group.
-  2. Wait up to 2s (`Popen.wait(timeout)`) for the groups to exit.
+  2. Wait up to 2s total for the groups to exit.
   3. `os.killpg(pgid, SIGKILL)` for any survivors.
   4. Tolerate `ProcessLookupError` (group already gone).
 - Interrupted tasks stay `running` in the history (not `failed`), so the next
   start re-queues them. Partial files are left for yt-dlp to resume.
+- Check group liveness even if the leader exits; ffmpeg can still be running
+  and holding output pipes open.
 - Workers must not pick up another task once shutdown starts (check the stop
   flag before dequeue), so nothing new is started after SIGTERM.
-- The final "check for urls before shutting down" runs only as a quick history
-  read; it must not wait on any download.
+- Do not do a final clipboard scan after the stop event: it can accept new work
+  or block on a clipboard reader during shutdown.
 - Systemd backstop: set `TimeoutStopSec=10` in `cliptube.service`. systemd
   already SIGKILLs the whole cgroup after that, so a stuck stop cannot take 90s.
-  Document this in the README; the unit lives outside the repo.
+  Document this in the README and update the repository's template. Applying
+  the change to the installed user unit remains a manual task.
 - Failures are logged at ERROR with the URL and exit code when a task is marked
   `failed`; interrupted tasks are logged at INFO as "interrupted, will retry".
 
@@ -174,30 +182,32 @@ force=False)`, which waits for the running yt-dlp to finish. Remove that wait.
 
 ## Tasks
 
-- [ ] Extract URL parsing in `history.py` so it accepts a string, with tests.
-- [ ] Implement the cumulative JSONL history (atomic writes, lock, pruning) with
+- [x] Extract URL parsing in `history.py` so it accepts a string, with tests.
+- [x] Implement the cumulative JSONL history (atomic writes, lock, pruning) with
       `queued`/`running`/`done`/`failed` states, and tests for each transition.
-- [ ] Migrate `cliptube.list` entries as `done`.
-- [ ] Have the queue workers set `running` on pickup and `done`/`failed` on exit
+- [x] Migrate `cliptube.list` entries as `done`.
+- [x] Have the queue workers set `running` on pickup and `done`/`failed` on exit
       (including the BBC PVR path); re-queue `queued`/`running` entries on startup;
       then drop `pending_queue.json`.
-- [ ] Add `clipsource.py` with the `ClipSource` interface and `PollSource`.
-- [ ] Add `[clipboard]` config reading with defaults and validation (unknown
+- [x] Add `clipsource.py` with the `ClipSource` interface and `PollSource`.
+- [x] Add `[clipboard]` config reading with defaults and validation (unknown
       `backend` or `selection` gives a clear error), including sample config and README docs.
-- [ ] Support `selection = clipboard | primary | both` in the Wayland, X11 and poll sources.
-- [ ] Implement `WaylandWatchSource` with NUL framing, reader thread and unexpected-exit fallback.
-- [ ] Implement `X11NotifySource` with de-duplication.
-- [ ] Implement `select_source` (`auto` order, missing-tool fallback, startup log line).
-- [ ] Rewire `wclipboard` to the source loop, rename the entry point, and keep `uv run cliptube` working.
-- [ ] Hook `source.stop()` into the SIGTERM handler; verify no child survives.
-- [ ] Fast shutdown: start downloads in their own session, SIGTERM then SIGKILL
+- [x] Support `selection = clipboard | primary | both` in the Wayland, X11 and poll sources.
+- [x] Implement `WaylandWatchSource` with length framing, reader thread and unexpected-exit fallback.
+- [x] Implement `X11NotifySource` with de-duplication.
+- [x] Implement `select_source` (`auto` order, missing-tool fallback, startup log line).
+- [x] Rewire `wclipboard` to the source loop, rename the entry point, and keep `uv run cliptube` working.
+- [x] Wake the source in the SIGTERM handler and stop it in main-loop cleanup;
+      verify children are stopped in automated tests.
+- [x] Fast shutdown: start downloads in their own session, SIGTERM then SIGKILL
       the process group (2s grace), remove the 90s `wait_for_current` shutdown,
       stop workers taking new tasks, keep interrupted tasks `running`.
-- [ ] Test shutdown with a fake long-running child that ignores SIGTERM: the
+- [x] Test shutdown with a real harmless long-running child that ignores SIGTERM: the
       group is killed within the grace period and the task stays `running`.
+- [ ] Apply the updated systemd stop settings to the installed user unit.
 - [ ] Manual check: `systemctl --user stop cliptube` during a real yt-dlp
       download returns in under ~5s and leaves no yt-dlp/ffmpeg processes.
-- [ ] Unit tests with a fake child process (no real clipboard): framing, de-dup,
+- [x] Unit tests with a fake child process (no real clipboard): framing, de-dup,
       child exit, stop unblocks `wait_for_change`, `auto` selection.
 - [ ] Manual verification: GNOME (unchanged default), then XFCE on the new laptop
       (`clipnotify` + Clipman) and `systemctl --user stop cliptube` returns quickly.

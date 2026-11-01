@@ -1,446 +1,263 @@
-#
-# Copyright (c) 2023-2024, Chris Allison
-#
-#     This file is part of cliptube.
-#
-#     cliptube is free software: you can redistribute it and/or modify
-#     it under the terms of the GNU General Public License as published by
-#     the Free Software Foundation, either version 3 of the License, or
-#     (at your option) any later version.
-#
-#     cliptube is distributed in the hope that it will be useful,
-#     but WITHOUT ANY WARRANTY; without even the implied warranty of
-#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#     GNU General Public License for more details.
-#
-#     You should have received a copy of the GNU General Public License
-#     along with cliptube.  If not, see <http://www.gnu.org/licenses/>.
-#
-
-"""Tests for the localqueue module."""
-
+import configparser
 import json
+import os
+import signal
 import subprocess
+import sys
+import threading
+import time
 from unittest.mock import patch
 
 import pytest
 
 from cliptube import localqueue
-from cliptube.localqueue import (
-    LocalQueueProcessor,
-    ProcessingTask,
-    get_merger_output_line,
-)
+from cliptube.history import HistoryStore
+from cliptube.localqueue import LocalQueueProcessor, ProcessingTask
 
 
-@pytest.fixture(autouse=True)
-def isolate_live_queue_cache(monkeypatch, tmp_path):
-    """Ensure tests never read/write the user's live pending queue cache."""
-    cache_file = tmp_path / "pending_queue.json"
-    monkeypatch.setattr(localqueue, "get_cache_path", lambda: str(cache_file))
+@pytest.fixture
+def history(tmp_path):
+    return HistoryStore(
+        tmp_path / "history", legacy_list=tmp_path / "list",
+        legacy_cache=tmp_path / "pending",
+    )
 
 
-def test_ProcessingTask():
-    """Test ProcessingTask initialization and repr."""
-    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    task = ProcessingTask(url, vtype="v")
-    assert task.url == url
-    assert task.vtype == "v"
+def test_task_serialization():
+    task = ProcessingTask("https://youtu.be/abc", "p")
+    assert ProcessingTask.from_dict(task.to_dict()).to_dict() == task.to_dict()
     assert "ProcessingTask" in repr(task)
+    assert ProcessingTask("https://bbc.co.uk/sounds/play/abc", "r").vtype == "b"
 
 
-def test_ProcessingTask_serialization():
-    """Test ProcessingTask serialization and deserialization."""
-    url = "https://www.youtube.com/watch?v=test123"
-    task = ProcessingTask(url, vtype="p")
-
-    # Serialize to dict
-    task_dict = task.to_dict()
-    assert task_dict["url"] == url
-    assert task_dict["vtype"] == "p"
-
-    # Deserialize from dict
-    restored_task = ProcessingTask.from_dict(task_dict)
-    assert restored_task.url == url
-    assert restored_task.vtype == "p"
-
-
-def test_ProcessingTask_vtype_variants():
-    """Test ProcessingTask with different vtypes."""
-    url = "https://example.com/video"
-    for vtype in ["v", "p", "i", "r"]:
-        task = ProcessingTask(url, vtype=vtype)
-        assert task.vtype == vtype
-
-
-def test_LocalQueueProcessor_initialization():
-    """Test that LocalQueueProcessor initializes correctly."""
-    processor = LocalQueueProcessor(num_workers=1)
-    assert processor.task_queue is not None
-    assert len(processor.workers) == 1
-    assert processor.workers[0].is_alive()
-    processor.shutdown(timeout=2)
-
-
-def test_LocalQueueProcessor_multiple_workers():
-    """Test initialization with multiple workers."""
-    processor = LocalQueueProcessor(num_workers=3)
-    assert len(processor.workers) == 3
-    for worker in processor.workers:
-        assert worker.is_alive()
-    processor.shutdown(timeout=2)
-
-
-def test_queue_urls():
-    """Test that URLs are queued without errors."""
-    processor = LocalQueueProcessor(num_workers=1)
-    urls = [
-        "https://www.youtube.com/watch?v=test1",
-        "https://www.youtube.com/watch?v=test2",
-    ]
-    # Mock shellCommand to avoid actual processing
-    with patch("cliptube.localqueue.shellCommand") as mock_cmd:
-        mock_cmd.return_value = ("", "")
-        processor.queue_urls(urls, vtype="v")
-        # Give the worker a moment to process
+def test_queue_success_and_dedup(history):
+    processor = LocalQueueProcessor(history=history)
+    with patch("cliptube.localqueue.shellCommand", return_value=("", "")) as command:
+        processor.queue_urls(["https://youtu.be/abc"] * 2)
         processor.task_queue.join()
+        processor.queue_urls(["https://youtu.be/abc"])
+        assert command.call_count == 1
+        assert history.records["https://youtu.be/abc"]["state"] == "done"
+    processor.shutdown()
+
+
+def test_failed_is_logged_and_not_retried(history):
+    processor = LocalQueueProcessor(history=history)
+    url = "https://youtu.be/fail"
+    with (
+        patch("cliptube.localqueue.shellCommand", side_effect=subprocess.CalledProcessError(7, ["yt-dlp"])),
+        patch.object(localqueue.log, "error") as logged,
+    ):
+        processor.queue_urls([url])
+        processor.task_queue.join()
+        assert history.records[url]["state"] == "failed"
+        assert history.records[url]["exitcode"] == 7
+        assert url in logged.call_args.args[0]
+        assert "exit code 7" in logged.call_args.args[0]
+        processor.queue_urls([url])
         assert processor.task_queue.empty()
-    processor.shutdown(timeout=2)
+    processor.shutdown()
 
 
-def test_module_level_api_not_initialized():
-    """Test that module-level API raises error if not initialized."""
-    # Reset the global processor
-    localqueue._processor = None
+def test_playlist_command(history):
+    processor = LocalQueueProcessor(history=history)
+    with (
+        patch("cliptube.localqueue.shellCommand", return_value=("", "")) as command,
+        patch("cliptube.localqueue.getYtDlpBin", return_value="yt-dlp"),
+    ):
+        processor.queue_urls(["https://youtube.com/playlist?list=abc"], "p")
+        processor.task_queue.join()
+        assert command.call_args.args[0] == [
+            "yt-dlp", "-o",
+            "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s",
+            "https://youtube.com/playlist?list=abc",
+        ]
+    processor.shutdown()
+
+
+@pytest.mark.parametrize("enabled", [True, False])
+def test_bbc_pvr_completion(history, tmp_path, enabled):
+    cfg = configparser.ConfigParser()
+    cfg.read_dict({"bbc": {"enabled": str(enabled), "pvrdir": str(tmp_path / "pvr")}})
+    processor = LocalQueueProcessor(history=history)
+    url = "https://www.bbc.co.uk/sounds/brand/m0024fk6"
+    with patch("cliptube.localqueue.readConfig", return_value=cfg):
+        processor.queue_urls([url], "b")
+        processor.task_queue.join()
+    assert history.records[url]["state"] == "done"
+    assert (tmp_path / "pvr" / "m0024fk6").exists() == enabled
+    if not enabled:
+        assert history.records[url]["outcome"] == "disabled"
+    processor.shutdown()
+
+
+def test_invalid_pvr_is_failed(history):
+    cfg = configparser.ConfigParser()
+    processor = LocalQueueProcessor(history=history)
+    url = "https://www.bbc.co.uk/sounds/unknown/abc"
+    with patch("cliptube.localqueue.readConfig", return_value=cfg):
+        processor.queue_urls([url], "b")
+        processor.task_queue.join()
+    assert history.records[url]["state"] == "failed"
+    processor.shutdown()
+
+
+def test_pending_and_running_restored_before_new_work(history):
+    history.accept("https://youtu.be/queued")
+    history.accept("https://youtu.be/running")
+    history.transition("https://youtu.be/running", "running")
+    history.accept("https://youtu.be/failed")
+    history.transition("https://youtu.be/failed", "failed")
+    processor = LocalQueueProcessor(num_workers=0, history=history)
+    processor.queue_urls(["https://youtu.be/new"])
+    tasks = [processor.task_queue.get_nowait().url for _ in range(3)]
+    assert tasks == ["https://youtu.be/running", "https://youtu.be/queued", "https://youtu.be/new"]
+    processor.shutdown()
+
+
+def test_shutdown_preserves_pending_and_is_idempotent(history):
+    processor = LocalQueueProcessor(num_workers=0, history=history)
+    processor.queue_urls(["https://youtu.be/a", "https://youtu.be/b"])
+    processor.shutdown()
+    processor.shutdown()
+    assert len(history.pending()) == 2
+    with pytest.raises(RuntimeError, match="shutdown"):
+        processor.queue_urls(["https://youtu.be/c"])
+
+
+def test_shutdown_kills_sigterm_ignoring_group_and_restores(history, tmp_path):
+    ready = tmp_path / "ready"
+    child_pid = tmp_path / "child"
+    child_code = (
+        "import signal,time,pathlib,os; "
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
+        f"pathlib.Path({str(child_pid)!r}).write_text(str(os.getpid())); "
+        "time.sleep(60)"
+    )
+    code = (
+        "import signal,subprocess,sys,time,pathlib; "
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN); "
+        f"subprocess.Popen([sys.executable,'-c',{child_code!r}]); "
+        f"pathlib.Path({str(ready)!r}).write_text('ready'); "
+        "time.sleep(60)"
+    )
+    processor = LocalQueueProcessor(history=history)
+    original = localqueue.shellCommand
+    processes = []
+
+    def command(_cmd, process_callback):
+        def remember(proc):
+            processes.append(proc)
+            process_callback(proc)
+        return original([sys.executable, "-c", code], process_callback=remember)
+
     try:
-        localqueue.queue_urls(["https://example.com"])
-        assert False, "Should have raised RuntimeError"
-    except RuntimeError as e:
-        assert "not initialized" in str(e).lower()
+        with patch("cliptube.localqueue.shellCommand", side_effect=command):
+            processor.queue_urls(["https://youtu.be/running", "https://youtu.be/pending"])
+            deadline = time.monotonic() + 5
+            while not (ready.exists() and child_pid.exists()):
+                assert time.monotonic() < deadline
+                threading.Event().wait(0.01)
+            started = time.monotonic()
+            processor.shutdown()
+            assert time.monotonic() - started < 4
+            assert not processor.workers[0].is_alive()
+            assert processes[0].returncode == -signal.SIGKILL
+            assert history.records["https://youtu.be/running"]["state"] == "running"
+            assert history.records["https://youtu.be/pending"]["state"] == "queued"
+            stat = f"/proc/{child_pid.read_text()}/stat"
+            if os.path.exists(stat):
+                with open(stat) as stream:
+                    assert stream.read().split()[2] == "Z"
+            restored = LocalQueueProcessor(num_workers=0, history=history)
+            assert restored.task_queue.qsize() == 2
+            restored.shutdown()
+    finally:
+        processor.shutdown()
+        for proc in processes:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
 
 
-def test_module_level_initialize_and_queue():
-    """Test module-level initialize and queue_urls functions."""
-    localqueue.initialize(num_workers=1)
-    assert localqueue._processor is not None
+def test_cache_migration_preserves_old_pending(tmp_path):
+    old_list = tmp_path / "list"
+    old_list.write_text("https://youtu.be/abc\nhttps://youtu.be/done\n")
+    cache = tmp_path / "pending_queue.json"
+    cache.write_text(json.dumps([{"url": "https://youtu.be/abc", "vtype": "v"}]))
+    history = HistoryStore(tmp_path / "history", legacy_list=old_list, legacy_cache=cache)
+    assert history.records["https://youtu.be/abc"]["state"] == "queued"
+    assert history.records["https://youtu.be/done"]["state"] == "done"
+    assert not cache.exists()
+    assert old_list.exists()
 
-    with patch("cliptube.localqueue.shellCommand") as mock_cmd:
-        mock_cmd.return_value = ("", "")
-        localqueue.queue_urls(["https://www.youtube.com/watch?v=test"], vtype="v")
-        localqueue._processor.task_queue.join()
 
-    localqueue.shutdown(timeout=2)
+def test_module_api(history, monkeypatch):
+    monkeypatch.setattr(localqueue, "_processor", None)
+    with pytest.raises(RuntimeError, match="not initialized"):
+        localqueue.queue_urls(["https://youtu.be/abc"])
+    localqueue.initialize(num_workers=0, history=history)
+    localqueue.queue_urls(["https://youtu.be/abc"])
+    localqueue.shutdown()
     assert localqueue._processor is None
 
 
-def test_shutdown_drains_queue():
-    """Test that shutdown waits for all tasks to complete."""
-    processor = LocalQueueProcessor(num_workers=1)
-
-    with patch("cliptube.localqueue.shellCommand") as mock_cmd:
-        # Make commands take a moment
-        mock_cmd.return_value = ("", "")
-        urls = [f"https://example.com/video{i}" for i in range(3)]
-        processor.queue_urls(urls, vtype="v")
-
-        # Shutdown should wait for all to complete
-        processor.shutdown(timeout=5)
-
-        # All 3 tasks should have been processed
-        assert mock_cmd.call_count >= 3
+def test_worker_persistence_failure_is_explicit_and_wakes_main(history):
+    woken = threading.Event()
+    processor = LocalQueueProcessor(history=history, on_failure=woken.set)
+    try:
+        with patch.object(history, "transition", side_effect=OSError("disk full")):
+            processor.queue_urls(["https://youtu.be/abc"])
+            assert woken.wait(2)
+            assert processor.failed.is_set()
+            assert history.records["https://youtu.be/abc"]["state"] == "queued"
+    finally:
+        processor.shutdown()
 
 
-def test_processing_task_different_vtypes():
-    """Test command selection by vtype with correct output handling."""
-    videos = ["https://example.com/v1", "https://example.com/v2"]
-    playlists = ["https://example.com/p1"]
-    iplayer = ["https://www.bbc.co.uk/iplayer/episode/b0123456/example"]
+def test_stop_requested_before_process_registration_kills_new_child(history):
+    processor = LocalQueueProcessor(num_workers=0, history=history)
+    worker = localqueue.URLProcessorWorker(processor)
+    proc = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"],
+        start_new_session=True,
+    )
+    try:
+        processor.stop_event.set()
+        worker._store_process(proc)
+        assert proc.wait(timeout=2) in {-signal.SIGTERM, -signal.SIGKILL}
+    finally:
+        processor.shutdown()
+        if proc.poll() is None:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
 
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
 
+def test_sigterm_during_download_is_interrupted_not_failed(history):
+    stop_event = threading.Event()
+    processor = LocalQueueProcessor(history=history, stop_event=stop_event)
+
+    def command(*args, **kwargs):
+        stop_event.set()
+        raise subprocess.CalledProcessError(-signal.SIGTERM, ["yt-dlp"])
+
+    with patch("cliptube.localqueue.shellCommand", side_effect=command):
+        processor.queue_urls(["https://youtu.be/abc"])
+        processor.task_queue.join()
+    assert history.records["https://youtu.be/abc"]["state"] == "running"
+    processor.shutdown()
+
+
+def test_merger_filename_logged(history):
+    processor = LocalQueueProcessor(history=history)
     with (
-        patch("cliptube.localqueue.shellCommand") as mock_cmd,
-        patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
-        patch("cliptube.localqueue.iplayer.download") as mock_download,
+        patch("cliptube.localqueue.shellCommand", return_value=(
+            "", '[Merger] Merging formats into "/tmp/example.mkv"',
+        )),
+        patch.object(localqueue.log, "info") as logged,
     ):
-        mock_cmd.return_value = ("", "")
-        mock_download.return_value = subprocess.CompletedProcess(
-            args=["get_iplayer", "--url", "https://www.bbc.co.uk/programmes/b0123456"],
-            returncode=0,
-            stdout="",
-            stderr="",
-        )
-        processor.queue_urls(videos, vtype="v")
-        processor.queue_urls(playlists, vtype="p")
-        processor.queue_urls(iplayer, vtype="i")
-
+        processor.queue_urls(["https://youtu.be/abc"])
         processor.task_queue.join()
-
-        # yt-dlp still handles the two videos and the playlist.
-        assert mock_cmd.call_count >= 3
-        assert mock_download.call_count == 1
-
-        called_cmds = [list(call.args[0]) for call in mock_cmd.call_args_list]
-        assert ["/home/chris/bin/yt-dlp", "https://example.com/v1"] in called_cmds
-        assert ["/home/chris/bin/yt-dlp", "https://example.com/v2"] in called_cmds
-        assert [
-            "/home/chris/bin/yt-dlp",
-            "-o",
-            "/mnt/nas/youtube/playlists/%(playlist_title)s/%(title)s.%(ext)s",
-            "https://example.com/p1",
-        ] in called_cmds
-        assert mock_download.call_args.args[0] == iplayer[0]
-
-    processor.shutdown(timeout=2)
-
-
-def test_processing_task_radio_uses_get_iplayer_output_directory(tmp_path):
-    """Test radio tasks use get_iplayer and the user's radio directory."""
-    url = "https://www.bbc.co.uk/sounds/play/m001example"
-    radio_dir = tmp_path / "radio"
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
-
-    with (
-        patch("cliptube.localqueue.shellCommand") as mock_cmd,
-        patch("cliptube.localqueue.expandPath", return_value=str(radio_dir)),
-    ):
-        mock_cmd.return_value = ("", "")
-        processor.queue_urls([url], vtype="r")
-        processor.task_queue.join()
-
-        mock_cmd.assert_called_once_with(
-            ["get_iplayer", "--type=radio", "--output", str(radio_dir), url],
-            process_callback=processor.workers[0]._store_process,
-        )
-        assert radio_dir.is_dir()
-
-    processor.shutdown(timeout=2)
-
-
-def test_processing_task_radio_handles_download_failure(tmp_path):
-    """Test radio command failures are handled without stopping the worker."""
-    url = "https://www.bbc.co.uk/sounds/play/m001example"
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
-
-    with (
-        patch(
-            "cliptube.localqueue.shellCommand",
-            side_effect=subprocess.CalledProcessError(
-                returncode=1,
-                cmd=["get_iplayer", "--type=radio", url],
-            ),
-        ) as mock_cmd,
-        patch("cliptube.localqueue.expandPath", return_value=str(tmp_path / "radio")),
-        patch("cliptube.localqueue.errorNotify") as mock_error,
-    ):
-        processor.queue_urls([url], vtype="r")
-        processor.task_queue.join()
-
-        mock_cmd.assert_called_once()
-        mock_error.assert_called_once()
-
-    processor.shutdown(timeout=2)
-
-
-def test_processing_task_iplayer_invalid_url():
-    """Test that invalid BBC URLs are routed through the iPlayer error path."""
-    url = "https://example.com/not-bbc"
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
-
-    with (
-        patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
-        patch("cliptube.localqueue.shellCommand") as mock_cmd,
-        patch(
-            "cliptube.localqueue.iplayer.download",
-            side_effect=localqueue.iplayer.IPlayerUrlError("Not a BBC URL"),
-        ) as mock_download,
-    ):
-        processor.queue_urls([url], vtype="i")
-        processor.task_queue.join()
-
-        mock_download.assert_called_once_with(url)
-        mock_cmd.assert_not_called()
-
-    processor.shutdown(timeout=2)
-
-
-def test_processing_task_iplayer_download_failure():
-    """Test that iPlayer download failures are handled without yt-dlp involvement."""
-    url = "https://www.bbc.co.uk/iplayer/episode/b0123456/example"
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
-
-    with (
-        patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
-        patch("cliptube.localqueue.shellCommand") as mock_cmd,
-        patch(
-            "cliptube.localqueue.iplayer.download",
-            side_effect=subprocess.CalledProcessError(
-                returncode=1,
-                cmd=["get_iplayer", "--url", url],
-                output="",
-                stderr="failed",
-            ),
-        ) as mock_download,
-    ):
-        processor.queue_urls([url], vtype="i")
-        processor.task_queue.join()
-
-        mock_download.assert_called_once_with(url)
-        mock_cmd.assert_not_called()
-
-    processor.shutdown(timeout=2)
-
-
-def test_queue_length_logs_empty_once_per_drain_cycle():
-    """Test queue length logging suppresses repeated empty queue messages."""
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
-
-    with (
-        patch("cliptube.localqueue.shellCommand") as mock_cmd,
-        patch("cliptube.localqueue.log.info") as mock_log_info,
-    ):
-        mock_cmd.return_value = ("", "")
-
-        processor.queue_urls(
-            ["https://example.com/video1", "https://example.com/video2"], vtype="v"
-        )
-        processor.task_queue.join()
-
-        queue_logs = [
-            call.args[0]
-            for call in mock_log_info.call_args_list
-            if call.args and call.args[0].startswith("Queue length:")
-        ]
-        assert queue_logs == ["Queue length: 1", "Queue length: 0"]
-
-        mock_log_info.reset_mock()
-
-        processor.queue_urls(["https://example.com/video3"], vtype="v")
-        processor.task_queue.join()
-
-        queue_logs = [
-            call.args[0]
-            for call in mock_log_info.call_args_list
-            if call.args and call.args[0].startswith("Queue length:")
-        ]
-        assert queue_logs == ["Queue length: 0"]
-
-    processor.shutdown(timeout=2)
-
-
-def test_get_merger_output_line_prefers_last_match():
-    stdout = "line 1\n[Merger] First output\nline 3"
-    stderr = "noise\n[Merger] Final output"
-    assert get_merger_output_line(stdout, stderr) == "[Merger] Final output"
-
-
-def test_successful_ytdlp_logs_merger_line():
-    processor = LocalQueueProcessor(num_workers=1, restore_from_cache=False)
-
-    with (
-        patch("cliptube.localqueue.shellCommand") as mock_cmd,
-        patch("cliptube.localqueue.getYtDlpBin", return_value="/home/chris/bin/yt-dlp"),
-        patch("cliptube.localqueue.log.info") as mock_log_info,
-    ):
-        mock_cmd.return_value = (
-            "",
-            '[download] 100%\n[Merger] Merging formats into "/mnt/nas/youtube/videos/myvideo.mkv"',
-        )
-        processor.queue_urls(["https://example.com/v1"], vtype="v")
-        processor.task_queue.join()
-
-        info_messages = [call.args[0] for call in mock_log_info.call_args_list]
-        assert "myvideo.mkv" in info_messages
-
-    processor.shutdown(timeout=2)
-
-
-def test_cache_save_and_load(monkeypatch, tmp_path):
-    """Test saving pending tasks to cache and loading them on startup."""
-    # Mock the cache path to use a temp directory
-    cache_file = tmp_path / "test_queue.json"
-
-    def mock_cache_path():
-        return str(cache_file)
-
-    monkeypatch.setattr("cliptube.localqueue.get_cache_path", mock_cache_path)
-
-    # Create processor and queue some items
-    # Use zero workers so queue state is deterministic for cache-save assertions.
-    processor = LocalQueueProcessor(num_workers=0, restore_from_cache=False)
-    urls = [f"https://example.com/video{i}" for i in range(3)]
-    processor.queue_urls(urls, vtype="v")
-
-    # Shutdown without waiting to trigger cache save
-    processor.shutdown(wait_for_current=False, timeout=1)
-
-    # Verify cache file was created
-    assert cache_file.exists()
-
-    # Load and verify cached content
-    with open(cache_file) as f:
-        cached_data = json.load(f)
-    assert len(cached_data) == 3
-    for i, item in enumerate(cached_data):
-        assert item["url"] == urls[i]
-        assert item["vtype"] == "v"
-
-
-def test_cache_restore_on_startup(monkeypatch, tmp_path):
-    """Test that cached tasks are restored when processor starts."""
-    cache_file = tmp_path / "test_queue.json"
-
-    def mock_cache_path():
-        return str(cache_file)
-
-    monkeypatch.setattr("cliptube.localqueue.get_cache_path", mock_cache_path)
-
-    # Create cache file with test data
-    cached_tasks = [
-        {"url": "https://example.com/cached1", "vtype": "v"},
-        {"url": "https://example.com/cached2", "vtype": "p"},
-    ]
-    with open(cache_file, "w") as f:
-        json.dump(cached_tasks, f)
-
-    # Patch command execution before processor startup so restored tasks are mocked.
-    with patch("cliptube.localqueue.shellCommand") as mock_cmd:
-        mock_cmd.return_value = ("", "")
-
-        # Create processor with restore enabled
-        processor = LocalQueueProcessor(num_workers=1, restore_from_cache=True)
-
-        # Verify tasks were loaded and processed
-        processor.task_queue.join()
-
-        # All 2 cached tasks should have been processed
-        assert mock_cmd.call_count >= 2
-
-        processor.shutdown(timeout=2)
-
-    # Cache file should be deleted after loading
-    assert not cache_file.exists()
-
-
-def test_shutdown_with_wait_for_current_false():
-    """Test fast shutdown that saves pending items without waiting."""
-    processor = LocalQueueProcessor(num_workers=1)
-
-    with patch("cliptube.localqueue.shellCommand") as mock_cmd:
-        # Make commands slow
-        import time
-
-        def slow_command(*args, **kwargs):
-            time.sleep(0.1)
-            return ("", "")
-
-        mock_cmd.side_effect = slow_command
-        urls = [f"https://example.com/slow{i}" for i in range(5)]
-        processor.queue_urls(urls, vtype="v")
-
-        # Fast shutdown without waiting for all tasks
-        processor.shutdown(wait_for_current=False, timeout=1)
-
-        # Only some tasks should have been processed (not all 5)
-        # The exact number depends on timing, but it should be less than 5
-        assert mock_cmd.call_count < 5
+        assert "example.mkv" in [call.args[0] for call in logged.call_args_list]
+    processor.shutdown()

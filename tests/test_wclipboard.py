@@ -1,179 +1,168 @@
+import configparser
+import json
+import os
+import signal
+import subprocess
+import sys
+import threading
+import time
+from types import SimpleNamespace
+from unittest.mock import Mock
+
 import pytest
 
 from cliptube import wclipboard
-from cliptube.history import checkUrl
 
 
-def test_checkUrl_accepts_bbc_sounds_radio_url():
-    url = "https://www.bbc.co.uk/sounds/play/m001exmp"
-
-    assert checkUrl(url) == url
-
-
-def test_checkUrl_accepts_bbc_sounds_series_url():
-    url = "https://www.bbc.co.uk/sounds/brand/m0024fk6"
-
-    assert checkUrl(url) == url
-
-
-def test_checkUrl_keeps_unrecognized_bbc_programme_url_for_diagnostics():
-    url = "https://www.bbc.co.uk/iplayer/collections/new-format/abc123"
-
-    assert checkUrl(url) == url
+def test_routing_keeps_bbc_out_of_ytdlp(monkeypatch):
+    queued = Mock()
+    monkeypatch.setattr(wclipboard.localqueue, "queue_urls", queued)
+    video = "https://youtu.be/video"
+    playlist = "https://youtube.com/playlist?list=abc"
+    radio = "https://www.bbc.co.uk/sounds/brand/m0024fk6"
+    tv = "https://www.bbc.co.uk/iplayer/episode/abcd1234/example"
+    wclipboard.processNewUrls([video, playlist, radio, tv])
+    assert queued.call_args_list[0].args == ([video],)
+    assert queued.call_args_list[0].kwargs == {"vtype": "v"}
+    assert queued.call_args_list[1].kwargs == {"vtype": "p"}
+    assert queued.call_args_list[2].args == ([tv, radio],)
+    assert queued.call_args_list[2].kwargs == {"vtype": "b"}
 
 
-def test_sortUrls_separates_content_types():
-    urls = [
-        "https://www.youtube.com/watch?v=video1",
-        "https://www.youtube.com/playlist?list=abc123",
-        "https://www.bbc.co.uk/iplayer/episodes/p09fs2qh/time?seriesId=p09fs2qh-structural-3-m00316gj",
-        "https://www.bbc.co.uk/iplayer/episode/b0000001/example",
-        "https://www.bbc.co.uk/sounds/brand/m0024fk6",
-        "https://www.bbc.co.uk/sounds/play/m001exmp",
-        "https://youtu.be/video2",
-    ]
-
-    playlists, iplayer, radio, videos = wclipboard.sortUrls(urls)
-
-    assert playlists == ["https://www.youtube.com/playlist?list=abc123"]
-    assert iplayer == [
-        "https://www.bbc.co.uk/iplayer/episodes/p09fs2qh/time?seriesId=p09fs2qh-structural-3-m00316gj",
-        "https://www.bbc.co.uk/iplayer/episode/b0000001/example",
-    ]
-    assert radio == [
-        "https://www.bbc.co.uk/sounds/brand/m0024fk6",
-        "https://www.bbc.co.uk/sounds/play/m001exmp",
-    ]
-    assert videos == [
-        "https://www.youtube.com/watch?v=video1",
-        "https://youtu.be/video2",
-    ]
+def test_signal_handler_only_wakes_no_shutdown(monkeypatch):
+    source = Mock()
+    processor = Mock()
+    monkeypatch.setattr(wclipboard, "source", source)
+    monkeypatch.setattr(wclipboard, "processor", processor)
+    wclipboard.ev.clear()
+    wclipboard.interruptWP(wclipboard.SIGTERM, None)
+    assert wclipboard.ev.is_set()
+    source.wake.assert_called_once()
+    processor.shutdown.assert_not_called()
+    wclipboard.ev.clear()
 
 
-def test_processNewUrls_writes_bbc_pvrs_and_queues_video_urls(monkeypatch):
-    queued = []
-    written = []
-
-    def fake_queue_urls(urls, vtype="v"):
-        queued.append((urls, vtype))
-
-    monkeypatch.setattr(wclipboard.localqueue, "queue_urls", fake_queue_urls)
-    monkeypatch.setattr(wclipboard, "readConfig", lambda: _bbc_config(True))
-    monkeypatch.setattr(
-        wclipboard,
-        "write_pvr_file",
-        lambda url, output_directory: written.append((url, output_directory)),
-    )
-    monkeypatch.setattr(
-        wclipboard, "getBBCPvrDirectory", lambda cfg: "/tmp/test-pvr"
-    )
-
-    urls = [
-        "https://www.youtube.com/watch?v=video1",
-        "https://www.youtube.com/playlist?list=abc123",
-        "https://www.bbc.co.uk/iplayer/episodes/p09fs2qh/time?seriesId=p09fs2qh-structural-3-m00316gj",
-        "https://www.bbc.co.uk/iplayer/episode/b0000001/example",
-        "https://www.bbc.co.uk/sounds/brand/m0024fk6",
-        "https://www.bbc.co.uk/sounds/play/m001exmp",
-        "https://youtu.be/video2",
-    ]
-    wclipboard.processNewUrls(urls)
-
-    assert queued == [
-        (["https://www.youtube.com/watch?v=video1", "https://youtu.be/video2"], "v"),
-        (["https://www.youtube.com/playlist?list=abc123"], "p"),
-    ]
-    assert written == [
-        (
-            "https://www.bbc.co.uk/iplayer/episodes/p09fs2qh/time?seriesId=p09fs2qh-structural-3-m00316gj",
-            "/tmp/test-pvr",
-        ),
-        ("https://www.bbc.co.uk/iplayer/episode/b0000001/example", "/tmp/test-pvr"),
-        ("https://www.bbc.co.uk/sounds/brand/m0024fk6", "/tmp/test-pvr"),
-        ("https://www.bbc.co.uk/sounds/play/m001exmp", "/tmp/test-pvr"),
-    ]
-
-
-def test_processNewUrls_skips_bbc_when_disabled(monkeypatch):
-    queued = []
-
-    def fake_queue_urls(urls, vtype="v"):
-        queued.append((urls, vtype))
-
-    monkeypatch.setattr(wclipboard.localqueue, "queue_urls", fake_queue_urls)
-    monkeypatch.setattr(wclipboard, "readConfig", lambda: _bbc_config(False))
-    monkeypatch.setattr(
-        wclipboard,
-        "write_pvr_file",
-        lambda url, output_directory: pytest.fail(url),
-    )
-
-    wclipboard.processNewUrls(
-        [
-            "https://www.youtube.com/watch?v=video1",
-            "https://www.bbc.co.uk/iplayer/episode/b0000001/example",
-            "https://www.bbc.co.uk/sounds/play/m001example",
-        ]
-    )
-
-    assert queued == [
-        (["https://www.youtube.com/watch?v=video1"], "v"),
-    ]
-
-
-def test_processNewUrls_logs_unrecognized_bbc_programme_url(monkeypatch, tmp_path):
-    url = "https://www.bbc.co.uk/iplayer/collections/new-format/abc123"
-    queued = []
-
-    monkeypatch.setattr(
-        wclipboard.localqueue,
-        "queue_urls",
-        lambda urls, vtype="v": queued.append((urls, vtype)),
-    )
-    monkeypatch.setattr(wclipboard, "readConfig", lambda: _bbc_config(True))
-    monkeypatch.setattr(wclipboard, "getBBCPvrDirectory", lambda cfg: str(tmp_path))
-    monkeypatch.setattr(wclipboard.log, "error", lambda message: queued.append(message))
-
-    wclipboard.processNewUrls([url])
-
-    assert queued == [f"Failed to create PVR file for {url}: Unsupported BBC URL: {url}"]
-    assert list(tmp_path.iterdir()) == []
-
-
-def _bbc_config(enabled):
-    import configparser
+@pytest.mark.parametrize("start_fails", [False, True])
+def test_entry_point_stops_once_and_never_scans_after_sigterm(monkeypatch, start_fails):
+    from cliptube import clipsource
 
     cfg = configparser.ConfigParser()
-    cfg.read_dict({"bbc": {"enabled": str(enabled)}})
-    return cfg
+    fake_source = Mock()
+    fake_processor = Mock()
+    fake_processor.failed.is_set.return_value = False
+    ledger = Mock()
+    queued = []
+    shutdown = Mock()
+    fake_os = SimpleNamespace(
+        path=SimpleNamespace(exists=lambda path: False),
+        unlink=Mock(),
+    )
+    monkeypatch.setattr(wclipboard, "os", fake_os)
+    monkeypatch.setattr(wclipboard, "signal", Mock())
+    monkeypatch.setattr(wclipboard, "oneOnly", Mock())
+    monkeypatch.setattr(wclipboard, "readConfig", lambda: cfg)
+    monkeypatch.setattr(wclipboard, "HistoryStore", lambda **kwargs: ledger)
+    monkeypatch.setattr(clipsource, "select_source", lambda cfg: fake_source)
+    monkeypatch.setattr(wclipboard.localqueue, "initialize", lambda **kwargs: fake_processor)
+    monkeypatch.setattr(wclipboard.localqueue, "shutdown", shutdown)
+    monkeypatch.setattr(
+        wclipboard.localqueue, "queue_urls",
+        lambda urls, vtype: queued.append((urls, vtype)),
+    )
+
+    def next_clipboard(_timeout):
+        if not queued:
+            return "Copied https://youtu.be/abc"
+        wclipboard.interruptWP(wclipboard.SIGTERM, None)
+        return "https://youtu.be/must-not-queue"
+
+    fake_source.wait_for_change.side_effect = next_clipboard
+    if start_fails:
+        fake_source.start.side_effect = RuntimeError("watcher failed")
+        monkeypatch.setattr(wclipboard, "errorExit", Mock(side_effect=SystemExit(1)))
+        with pytest.raises(SystemExit):
+            wclipboard.watchClipboard()
+        assert queued == []
+    else:
+        wclipboard.watchClipboard()
+        assert queued == [(["https://youtu.be/abc"], "v")]
+    shutdown.assert_called_once_with(timeout=3)
+    fake_source.stop.assert_called_once()
+    fake_processor.shutdown.assert_not_called()
+    fake_os.unlink.assert_not_called()
+    assert wclipboard.source is None
+    assert wclipboard.processor is None
+    wclipboard.ev.clear()
 
 
-def test_checkForNewUrls_ignores_none(monkeypatch):
-    called = {"processed": False}
+def test_real_sigterm_unblocks_watcher_and_persists_running_task(tmp_path):
+    history_path = tmp_path / "history"
+    ready = tmp_path / "ready"
+    download_pid = tmp_path / "download_pid"
+    child_code = (
+        "import signal,time,pathlib,os;"
+        "signal.signal(signal.SIGTERM,signal.SIG_IGN);"
+        f"pathlib.Path({str(download_pid)!r}).write_text(str(os.getpid()));"
+        f"pathlib.Path({str(ready)!r}).write_text('ready');"
+        "time.sleep(60)"
+    )
+    service_code = f"""
+import configparser, queue, sys
+from types import SimpleNamespace
+from cliptube import clipsource, localqueue, wclipboard
+from cliptube.history import HistoryStore
 
-    monkeypatch.setattr(wclipboard, "getNewUrls", lambda: None)
+class FakeSource:
+    def __init__(self):
+        self.changes = queue.SimpleQueue()
+    def start(self):
+        self.changes.put("https://youtu.be/interrupted")
+    def wait_for_change(self, timeout):
+        return self.changes.get(timeout=timeout)
+    def wake(self):
+        self.changes.put(None)
+    def stop(self):
+        self.wake()
 
-    def fake_process(urls):
-        called["processed"] = True
-
-    monkeypatch.setattr(wclipboard, "processNewUrls", fake_process)
-
-    wclipboard.checkForNewUrls()
-
-    assert called["processed"] is False
-
-
-def test_checkForNewUrls_processes_non_empty(monkeypatch):
-    new_urls = ["https://www.youtube.com/watch?v=video1"]
-    processed = {"urls": None}
-
-    monkeypatch.setattr(wclipboard, "getNewUrls", lambda: new_urls)
-
-    def fake_process(urls):
-        processed["urls"] = urls
-
-    monkeypatch.setattr(wclipboard, "processNewUrls", fake_process)
-
-    wclipboard.checkForNewUrls()
-
-    assert processed["urls"] == new_urls
+cfg = configparser.ConfigParser()
+wclipboard.readConfig = lambda: cfg
+wclipboard.oneOnly = lambda path: None
+wclipboard.os = SimpleNamespace(path=SimpleNamespace(exists=lambda path: False))
+wclipboard.HistoryStore = lambda **kwargs: HistoryStore(
+    {str(history_path)!r}, legacy_list={str(tmp_path / "oldlist")!r},
+    legacy_cache={str(tmp_path / "cache")!r}
+)
+clipsource.select_source = lambda cfg: FakeSource()
+original = localqueue.shellCommand
+localqueue.shellCommand = lambda cmd, process_callback: original(
+    [sys.executable, "-c", {child_code!r}], process_callback=process_callback
+)
+wclipboard.watchClipboard()
+"""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", service_code], start_new_session=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    )
+    try:
+        deadline = time.monotonic() + 5
+        while not ready.exists():
+            assert proc.poll() is None
+            assert time.monotonic() < deadline
+            threading.Event().wait(0.01)
+        started = time.monotonic()
+        proc.terminate()
+        out, err = proc.communicate(timeout=5)
+        assert proc.returncode == 0, out + err
+        assert time.monotonic() - started < 4
+        records = [json.loads(line) for line in history_path.read_text().splitlines()]
+        assert records[0]["state"] == "running"
+        assert "will retry" in out + err
+    finally:
+        if proc.poll() is None:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait()
+        if download_pid.exists():
+            try:
+                os.killpg(int(download_pid.read_text()), signal.SIGKILL)
+            except ProcessLookupError:
+                pass
