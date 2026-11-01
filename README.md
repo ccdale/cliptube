@@ -78,8 +78,13 @@ historydays = 365
 ```
 
 - `backend`: `gnome` (default), `auto`, `wayland`, `x11`, or `poll`.
-  `auto` prefers Wayland with `wl-paste`, then X11 with `clipnotify` and a reader,
+  `auto` prefers Wayland with `wl-paste --watch`, then X11 with `clipnotify` and a reader,
   then live polling, then GNOME history. The selected backend is logged.
+  Wayland watching needs the compositor's data-control protocol (KDE, Sway, Hyprland);
+  GNOME/Mutter lacks it. `auto` probes for it at startup. In a Wayland session
+  without it, `auto` uses GNOME Clipboard Indicator history when its file exists,
+  otherwise live polling; XWayland `clipnotify` is not used there because it misses
+  native Wayland copies.
 - `selection`: `clipboard` (default), `primary` (select-to-copy), or `both`.
   GNOME history cannot distinguish selections and ignores this setting.
 - `sleeptime`: positive interval in seconds, used only for live polling.

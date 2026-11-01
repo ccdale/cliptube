@@ -502,7 +502,42 @@ else:
 def test_auto_selection(monkeypatch, environment, tools, expected):
     monkeypatch.setattr(clipsource.os, "environ", environment)
     monkeypatch.setattr(clipsource.shutil, "which", lambda tool: tool if tool in tools else None)
+    monkeypatch.setattr(clipsource, "wayland_watch_support", lambda: (True, ""))
     assert isinstance(select_source(config(backend="auto")), expected)
+
+
+@pytest.mark.parametrize(("history_exists", "expected"), [
+    (True, GnomeHistorySource),
+    (False, PollSource),
+])
+def test_auto_wayland_without_data_control(monkeypatch, tmp_path, history_exists, expected):
+    """GNOME/Mutter rejects wl-paste --watch; XWayland clipnotify is not used."""
+    histfile = tmp_path / "history.json"
+    if history_exists:
+        histfile.write_text("[]")
+    cfg = config(backend="auto")
+    cfg.read_dict({"gnomeclipindicator": {"histfile": str(histfile)}})
+    monkeypatch.setattr(clipsource.os, "environ", {"WAYLAND_DISPLAY": "wayland-0", "DISPLAY": ":0"})
+    monkeypatch.setattr(clipsource.shutil, "which", lambda tool: tool)
+    monkeypatch.setattr(
+        clipsource, "wayland_watch_support",
+        lambda: (False, "Watch mode requires a compositor that supports the data-control protocol"),
+    )
+    assert isinstance(select_source(cfg), expected)
+
+
+@pytest.mark.parametrize(("script", "supported"), [
+    ("import time; time.sleep(30)", True),
+    ("import sys; sys.stderr.write('Watch mode requires data-control'); sys.exit(1)", False),
+])
+def test_wayland_watch_probe(children, script, supported):
+    scripts, _calls = children
+    scripts["wl-paste"] = script
+    result, reason = clipsource.wayland_watch_support(timeout=0.5)
+    assert result is supported
+    if not supported:
+        assert "status 1" in reason
+        assert "data-control" in reason
 
 
 def test_default_legacy_gnome_and_interval(monkeypatch):

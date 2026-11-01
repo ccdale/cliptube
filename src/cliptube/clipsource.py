@@ -15,6 +15,7 @@ import time
 
 from cliptube import log
 from cliptube.config import (
+    expandPath,
     getClipboardSettings,
     getClipboardSleepTime,
     readConfig,
@@ -72,6 +73,42 @@ def _read_command(tool, selection):
     if tool == "xsel":
         return ["xsel", "--output", "--primary" if selection == "primary" else "--clipboard"]
     raise ValueError(f"Unknown clipboard reader: {tool}")
+
+
+def wayland_watch_support(timeout=1.0):
+    """Return (supported, reason) by briefly running ``wl-paste --watch``.
+
+    Compositors without the data-control protocol (e.g. GNOME/Mutter) make
+    wl-paste exit immediately; a supported watcher keeps running.
+    """
+    try:
+        process = subprocess.Popen(
+            ["wl-paste", "--watch", "true"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        return False, str(exc)
+    try:
+        _, diagnostics = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        _terminate_groups([process], 0.5)
+        process.stderr.close()
+        return True, ""
+    detail = diagnostics.decode("utf-8", errors="replace").strip()
+    return False, (
+        f"wl-paste --watch exited with status {process.returncode}: "
+        f"{detail or 'no stderr'}"
+    )
+
+
+def _gnome_history_available(cfg):
+    try:
+        return os.path.exists(expandPath(cfg["gnomeclipindicator"]["histfile"]))
+    except KeyError:
+        return False
 
 
 class ClipSource:
@@ -379,17 +416,31 @@ def select_source(cfg=None) -> ClipSource:
     settings = getClipboardSettings(cfg)
     backend = settings.backend
     reader = _reader_tool()
-    wayland = bool(os.environ.get("WAYLAND_DISPLAY") and shutil.which("wl-paste"))
+    wayland_session = bool(os.environ.get("WAYLAND_DISPLAY"))
+    wayland = bool(wayland_session and shutil.which("wl-paste"))
+    if wayland and backend in {"auto", "wayland"}:
+        wayland, reason = wayland_watch_support()
+        if not wayland:
+            log.warning(f"Wayland clipboard watching unsupported: {reason}")
     x11 = bool(
         os.environ.get("DISPLAY")
         and shutil.which("clipnotify")
         and (shutil.which("xclip") or shutil.which("xsel"))
     )
+    gnome_history = _gnome_history_available(cfg)
+    fallback = "gnome" if gnome_history or reader is None else "poll"
     if backend == "auto":
-        backend = "wayland" if wayland else "x11" if x11 else "poll" if reader else "gnome"
+        if wayland:
+            backend = "wayland"
+        elif wayland_session:
+            # XWayland clipnotify misses native Wayland copies; prefer the GNOME
+            # extension's complete history over lossy live polling.
+            backend = fallback
+        else:
+            backend = "x11" if x11 else "poll" if reader else "gnome"
     elif (backend == "wayland" and not wayland) or (backend == "x11" and not x11):
         log.warning(f"Clipboard backend {backend} unavailable; selecting fallback")
-        backend = "poll" if reader else "gnome"
+        backend = fallback
     elif backend == "poll" and reader is None:
         log.warning("Clipboard polling unavailable; selecting GNOME history")
         backend = "gnome"
